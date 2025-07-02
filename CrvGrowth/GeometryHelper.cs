@@ -1,4 +1,6 @@
-﻿namespace CrvGrowth
+﻿using System;
+
+namespace CrvGrowth
 {
     public static class GeometryHelper
     {

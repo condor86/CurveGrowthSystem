@@ -1,4 +1,6 @@
-﻿namespace CrvGrowth
+﻿using System;
+
+namespace CrvGrowth
 {
     public readonly struct Vector3D(double x, double y, double z = 0.0)
     {

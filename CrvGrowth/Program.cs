@@ -1,4 +1,8 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 
 namespace CrvGrowth
@@ -41,10 +45,11 @@ namespace CrvGrowth
             );
             
             var resultCrv = flatCurve;
+
             
             // 保存平面曲线
             IOHelper.SavePointsToFile(resultPathCrv, resultCrv);
-            Console.WriteLine($"共生成 {resultCrv.Count} 个点，结果已保存至：{resultPathCrv}");
+            Console.WriteLine($"共生成 {resultCrv.Count()} 个点，结果已保存至：{resultPathCrv}");
             
             stopwatch1.Stop(); 
             Console.WriteLine($"Step1 平面生形耗时: {stopwatch1.ElapsedMilliseconds} ms");
