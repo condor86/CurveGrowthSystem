@@ -1,87 +1,110 @@
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\CrvGrowth.exe
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\CrvGrowth.deps.json
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\CrvGrowth.runtimeconfig.json
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfoInputs.cache
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfo.cs
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.CoreCompileInputs.cache
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\refint\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.genruntimeconfig.cache
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\ref\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\iRepellerFactors.txt
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\iRepellers.txt
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\iStartingPositions.txt
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\result.txt
-D:\00Study\0623\CrvGrowth\CrvGrowth\bin\Debug\net9.0\Supercluster.KDTree.dll
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.AssemblyReference.cache
-D:\00Study\0623\CrvGrowth\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.Up2Date
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\iRepellerFactors.txt
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\iRepellers.txt
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\iStartingPositions.txt
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\CrvGrowth.exe
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\CrvGrowth.deps.json
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\CrvGrowth.runtimeconfig.json
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\NetTopologySuite.dll
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\RTree.dll
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\bin\Debug\net9.0\Supercluster.KDTree.dll
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.AssemblyReference.cache
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfoInputs.cache
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfo.cs
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.CoreCompileInputs.cache
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.Up2Date
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\refint\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\CrvGrowth.genruntimeconfig.cache
-D:\00Study\0623\CrvGrowth - Rtree\CrvGrowth\obj\Debug\net9.0\ref\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\iRepellerFactors.txt
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\iRepellers.txt
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\iStartingPositions.txt
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\CrvGrowth.exe
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\CrvGrowth.deps.json
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\CrvGrowth.runtimeconfig.json
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\NetTopologySuite.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\RTree.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\bin\Debug\net9.0\Supercluster.KDTree.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.AssemblyReference.cache
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfoInputs.cache
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfo.cs
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.CoreCompileInputs.cache
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.Up2Date
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\refint\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\CrvGrowth.genruntimeconfig.cache
-D:\00Study\0623\CrvGrowth - Rtree2\CrvGrowth\obj\Debug\net9.0\ref\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\iRepellerFactors.txt
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\iRepellers.txt
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\iStartingPositions.txt
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\CrvGrowth.exe
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\CrvGrowth.deps.json
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\CrvGrowth.runtimeconfig.json
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\NetTopologySuite.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\RTree.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\bin\Debug\net9.0\Supercluster.KDTree.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.AssemblyReference.cache
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfoInputs.cache
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.AssemblyInfo.cs
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.CoreCompileInputs.cache
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.csproj.Up2Date
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\refint\CrvGrowth.dll
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.pdb
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\CrvGrowth.genruntimeconfig.cache
-D:\00Study\0623\CrvGrowth - 3D\CrvGrowth\obj\Debug\net9.0\ref\CrvGrowth.dll
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/CrvGrowth.exe
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/CrvGrowth.deps.json
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/CrvGrowth.runtimeconfig.json
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfoInputs.cache
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfo.cs
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.CoreCompileInputs.cache
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/refint/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.genruntimeconfig.cache
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/ref/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/iRepellerFactors.txt
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/iRepellers.txt
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/iStartingPositions.txt
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/result.txt
+D:/00Study/0623/CrvGrowth/CrvGrowth/bin/Debug/net9.0/Supercluster.KDTree.dll
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.AssemblyReference.cache
+D:/00Study/0623/CrvGrowth/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.Up2Date
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/iRepellerFactors.txt
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/iRepellers.txt
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/iStartingPositions.txt
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/CrvGrowth.exe
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/CrvGrowth.deps.json
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/CrvGrowth.runtimeconfig.json
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/NetTopologySuite.dll
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/RTree.dll
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/bin/Debug/net9.0/Supercluster.KDTree.dll
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.AssemblyReference.cache
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfoInputs.cache
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfo.cs
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.CoreCompileInputs.cache
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.Up2Date
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/refint/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/CrvGrowth.genruntimeconfig.cache
+D:/00Study/0623/CrvGrowth - Rtree/CrvGrowth/obj/Debug/net9.0/ref/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/iRepellerFactors.txt
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/iRepellers.txt
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/iStartingPositions.txt
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/CrvGrowth.exe
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/CrvGrowth.deps.json
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/CrvGrowth.runtimeconfig.json
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/NetTopologySuite.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/RTree.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/bin/Debug/net9.0/Supercluster.KDTree.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.AssemblyReference.cache
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfoInputs.cache
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfo.cs
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.CoreCompileInputs.cache
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.Up2Date
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/refint/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/CrvGrowth.genruntimeconfig.cache
+D:/00Study/0623/CrvGrowth - Rtree2/CrvGrowth/obj/Debug/net9.0/ref/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/iRepellerFactors.txt
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/iRepellers.txt
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/iStartingPositions.txt
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/CrvGrowth.exe
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/CrvGrowth.deps.json
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/CrvGrowth.runtimeconfig.json
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/NetTopologySuite.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/RTree.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/bin/Debug/net9.0/Supercluster.KDTree.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.AssemblyReference.cache
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfoInputs.cache
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfo.cs
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.CoreCompileInputs.cache
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.Up2Date
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/refint/CrvGrowth.dll
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.pdb
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/CrvGrowth.genruntimeconfig.cache
+D:/00Study/0623/CrvGrowth - 3D/CrvGrowth/obj/Debug/net9.0/ref/CrvGrowth.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/iRepellerFactors.txt
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/iRepellers.txt
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/iStartingPositions.txt
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/CrvGrowth
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/CrvGrowth.deps.json
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/CrvGrowth.runtimeconfig.json
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/CrvGrowth.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/CrvGrowth.pdb
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/NetTopologySuite.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/RTree.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/bin/Debug/net9.0/Supercluster.KDTree.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.AssemblyReference.cache
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.GeneratedMSBuildEditorConfig.editorconfig
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfoInputs.cache
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.AssemblyInfo.cs
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.CoreCompileInputs.cache
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.sourcelink.json
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.csproj.Up2Date
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/refint/CrvGrowth.dll
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.pdb
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/CrvGrowth.genruntimeconfig.cache
+/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/Debug/net9.0/ref/CrvGrowth.dll

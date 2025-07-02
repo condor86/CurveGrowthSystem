@@ -85,31 +85,24 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\yxyco\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "/Users/yxy/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\00Study\\0623\\CrvGrowth - 3D\\CrvGrowth\\CrvGrowth.csproj",
+      "projectUniqueName": "/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/CrvGrowth.csproj",
       "projectName": "CrvGrowth",
-      "projectPath": "D:\\00Study\\0623\\CrvGrowth - 3D\\CrvGrowth\\CrvGrowth.csproj",
-      "packagesPath": "C:\\Users\\yxyco\\.nuget\\packages\\",
-      "outputPath": "D:\\00Study\\0623\\CrvGrowth - 3D\\CrvGrowth\\obj\\",
+      "projectPath": "/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/CrvGrowth.csproj",
+      "packagesPath": "/Users/yxy/.nuget/packages/",
+      "outputPath": "/Users/yxy/Documents/CurveGrowthSystem/CrvGrowth/obj/",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\yxyco\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "/Users/yxy/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -128,7 +121,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.200"
+      "SdkAnalysisLevel": "9.0.300"
     },
     "frameworks": {
       "net9.0": {
@@ -163,7 +156,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.200/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.301/PortableRuntimeIdentifierGraph.json"
       }
     }
   },

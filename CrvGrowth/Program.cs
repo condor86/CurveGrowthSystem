@@ -12,12 +12,17 @@ namespace CrvGrowth
             // 根目录路径（即可执行文件所在目录）
             string rootDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            // 输入输出路径
+            // 上级目录，用于保存输出结果
+            string parentDir = Path.GetFullPath(Path.Combine(rootDir, "..", "..", ".."));
+
+            // 输入文件路径（位于可执行目录中）
             string startingPath  = Path.Combine(rootDir, "iStartingPositions.txt");
             string repellerPath  = Path.Combine(rootDir, "iRepellers.txt");
             string factorPath    = Path.Combine(rootDir, "iRepellerFactors.txt");
-            string resultPathCrv = Path.Combine(rootDir, @"..\..\..\resultsCrv.txt");
-            string resultPathLighting = Path.Combine(rootDir, @"..\..\..\resultsLighting.txt");
+
+            // 输出文件路径（保存到工程目录根部）
+            string resultPathCrv      = Path.Combine(parentDir, "resultsCrv.txt");
+            string resultPathLighting = Path.Combine(parentDir, "resultsLighting.txt");
 
             // 读取输入
             var startingPoints   = IOHelper.LoadPointsFromFile(startingPath);
@@ -43,6 +48,7 @@ namespace CrvGrowth
             
             stopwatch1.Stop(); 
             Console.WriteLine($"Step1 平面生形耗时: {stopwatch1.ElapsedMilliseconds} ms");
+
             var stopwatch2 = Stopwatch.StartNew();
 
             // 生成完整几何体
@@ -75,8 +81,6 @@ namespace CrvGrowth
             
             stopwatch2.Stop(); 
             Console.WriteLine($"Step2 光照模拟耗时: {stopwatch2.ElapsedMilliseconds} ms");
-
-
         }
     }
 }
