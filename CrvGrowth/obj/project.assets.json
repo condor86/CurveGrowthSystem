@@ -1,0 +1,182 @@
+{
+  "version": 3,
+  "targets": {
+    "net9.0": {
+      "NetTopologySuite/2.6.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/NetTopologySuite.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/NetTopologySuite.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "RTree/1.1.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/RTree.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/RTree.dll": {}
+        }
+      },
+      "Supercluster.KDTree/1.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/Supercluster.KDTree.dll": {}
+        },
+        "runtime": {
+          "lib/Supercluster.KDTree.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "NetTopologySuite/2.6.0": {
+      "sha512": "1B1OTacTd4QtFyBeuIOcThwSSLUdRZU3bSFIwM8vk36XiZlBMi3K36u74e4OqwwHRHUuJC1PhbDx4hyI266X1Q==",
+      "type": "package",
+      "path": "nettopologysuite/2.6.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "icon.png",
+        "lib/netstandard2.0/NetTopologySuite.dll",
+        "lib/netstandard2.0/NetTopologySuite.xml",
+        "lib/netstandard2.1/NetTopologySuite.dll",
+        "lib/netstandard2.1/NetTopologySuite.xml",
+        "nettopologysuite.2.6.0.nupkg.sha512",
+        "nettopologysuite.nuspec"
+      ]
+    },
+    "RTree/1.1.0": {
+      "sha512": "auPvsvIYgw1OZQL5khbVbuTbZ1hulaGVpfmgQGVoAvaxtVq8svC7ERyPsaxvGl83EkSsT//R+pdyDhaaQwONNw==",
+      "type": "package",
+      "path": "rtree/1.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/RTree.dll",
+        "rtree.1.1.0.nupkg.sha512",
+        "rtree.nuspec"
+      ]
+    },
+    "Supercluster.KDTree/1.0.4": {
+      "sha512": "ocsSPQ4DREZwqioRArFGv/u+P1U9Nw9V6J90+0/nMkjHidYX5Wg/fFSu/KgxNKvvRjloVIAWqHQUsLYuukC5qw==",
+      "type": "package",
+      "path": "supercluster.kdtree/1.0.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/Supercluster.KDTree.dll",
+        "supercluster.kdtree.1.0.4.nupkg.sha512",
+        "supercluster.kdtree.nuspec"
+      ]
+    }
+  },
+  "projectFileDependencyGroups": {
+    "net9.0": [
+      "NetTopologySuite >= 2.6.0",
+      "RTree >= 1.1.0",
+      "Supercluster.KDTree >= 1.0.4"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\yxyco\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "D:\\00Study\\0623\\CrvGrowth - 3D\\CrvGrowth\\CrvGrowth.csproj",
+      "projectName": "CrvGrowth",
+      "projectPath": "D:\\00Study\\0623\\CrvGrowth - 3D\\CrvGrowth\\CrvGrowth.csproj",
+      "packagesPath": "C:\\Users\\yxyco\\.nuget\\packages\\",
+      "outputPath": "D:\\00Study\\0623\\CrvGrowth - 3D\\CrvGrowth\\obj\\",
+      "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
+      "configFilePaths": [
+        "C:\\Users\\yxyco\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+      ],
+      "originalTargetFrameworks": [
+        "net9.0"
+      ],
+      "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "projectReferences": {}
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
+      },
+      "SdkAnalysisLevel": "9.0.200"
+    },
+    "frameworks": {
+      "net9.0": {
+        "targetAlias": "net9.0",
+        "dependencies": {
+          "NetTopologySuite": {
+            "target": "Package",
+            "version": "[2.6.0, )"
+          },
+          "RTree": {
+            "target": "Package",
+            "version": "[1.1.0, )"
+          },
+          "Supercluster.KDTree": {
+            "target": "Package",
+            "version": "[1.0.4, )"
+          }
+        },
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.200/PortableRuntimeIdentifierGraph.json"
+      }
+    }
+  },
+  "logs": [
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'Supercluster.KDTree 1.0.4' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net9.0'. This package may not be fully compatible with your project.",
+      "libraryId": "Supercluster.KDTree",
+      "targetGraphs": [
+        "net9.0"
+      ]
+    }
+  ]
+}
