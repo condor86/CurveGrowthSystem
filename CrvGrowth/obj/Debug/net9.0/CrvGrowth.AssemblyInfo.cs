@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CrvGrowth")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+75fe898ec55013b3244a4e4fe22e74088fbde5e3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3d2f25a5d802018fdd58b852d2054e82614ccf76")]
 [assembly: System.Reflection.AssemblyProductAttribute("CrvGrowth")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CrvGrowth")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
