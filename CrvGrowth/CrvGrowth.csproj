@@ -21,6 +21,7 @@
 
     <ItemGroup>
       <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+      <PackageReference Include="NumSharp" Version="0.30.0" />
       <PackageReference Include="RTree" Version="1.1.0" />
       <PackageReference Include="Supercluster.KDTree" Version="1.0.4" />
     </ItemGroup>

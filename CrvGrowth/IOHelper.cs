@@ -1,28 +1,29 @@
 ﻿using System.Globalization;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 
 namespace CrvGrowth
 {
     public static class IOHelper
     {
-        public static List<Point3D> LoadPointsFromFile(string filePath)
+        public static List<Vector3> LoadPointsFromFile(string filePath)
         {
-            var points = new List<Point3D>();
+            var points = new List<Vector3>();
             foreach (var line in File.ReadAllLines(filePath))
             {
                 var trimmed = line.Trim('{', '}', ' ');
                 var parts = trimmed.Split(',');
                 if (parts.Length >= 2 &&
-                    double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x) &&
-                    double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y))
+                    float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
+                    float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
                 {
-                    double z = 0.0;
+                    float z = 0.0f;
                     if (parts.Length >= 3 &&
-                        double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedZ))
+                        float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedZ))
                         z = parsedZ;
 
-                    points.Add(new Point3D(x, y, z));
+                    points.Add(new Vector3(x, y, z));
                 }
             }
             return points;
@@ -41,7 +42,7 @@ namespace CrvGrowth
             return factors;
         }
 
-        public static void SavePointsToFile(string filePath, List<Point3D> points)
+        public static void SavePointsToFile(string filePath, List<Vector3> points)
         {
             using StreamWriter writer = new StreamWriter(filePath);
             for (int i = 0; i < points.Count; i++)

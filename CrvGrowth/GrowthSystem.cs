@@ -2,6 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using NumSharp;
 
 namespace CrvGrowth
 {
@@ -12,59 +15,99 @@ namespace CrvGrowth
         private readonly double _maxFactor = 1.5;
         private readonly double _maxEffectDist = 300.0;
 
-        public List<Point3D> Run(
-            List<Point3D> starting,
-            List<Point3D> repellers,
+        public List<Vector3> Run(
+            List<Vector3> starting,
+            List<Vector3> repellers,
             List<double> repellerFactors,
             int maxPointCount = 200,
             int maxIterCount = 200,
             double baseDist = 75.0)
         {
-            var centers = new List<Point3D>(starting);
+            var centers = new List<Vector3>(starting);
 
             for (int iter = 0; iter < maxIterCount; iter++)
             {
                 if (centers.Count >= maxPointCount)
                     break;
 
-                var totalMoves = Enumerable.Repeat(Vector3D.Zero, centers.Count).ToList();
+                var totalMoves = Enumerable.Repeat(Vector3.Zero, centers.Count).ToList();
                 var collisionCounts = Enumerable.Repeat(0.0, centers.Count).ToList();
 
-                // ========== 创建镜像点并插入 KDTree ==========
+                // ========== 使用 NumSharp 向量化创建镜像点 ==========
+                int N = centers.Count;
+                double[,] centerArray = new double[N, 3];
+                for (int i = 0; i < N; i++)
+                {
+                    centerArray[i, 0] = centers[i].X;
+                    centerArray[i, 1] = centers[i].Y;
+                    centerArray[i, 2] = centers[i].Z;
+                }
+                NDArray centerND = np.array(centerArray);  // [N, 3]
+//                Console.WriteLine("centerND:");
+//                Console.WriteLine(centerND.ToString(true));
+                
+                NDArray offsets = np.array(new double[,]
+                {
+                    {-_tileWidth, -_tileHeight},
+                    { 0,         -_tileHeight},
+                    {_tileWidth, -_tileHeight},
+                    {-_tileWidth, 0},
+                    { 0,          0},
+                    {_tileWidth,  0},
+                    {-_tileWidth, _tileHeight},
+                    { 0,          _tileHeight},
+                    {_tileWidth,  _tileHeight}
+                });  // [9, 2]
+
+                NDArray offset9N3 = np.zeros((9, N, 3));
+                offset9N3[$":", $":", 0] = offsets[$":", 0].reshape(9, 1);
+                offset9N3[$":", $":", 1] = offsets[$":", 1].reshape(9, 1);
+                
+//                Console.WriteLine("offsets:\n" + offsets.ToString());
+//                Console.WriteLine("offset9N3:\n" + offset9N3.ToString());
+                // 创建 shape 为 [9, N, 3] 的空数组
+                NDArray centers9N3 = np.zeros((9, N, 3));
+
+                for (int i = 0; i < 9; i++)  // 9 个镜像方向
+                {
+                    for (int j = 0; j < N; j++)  // N 个点
+                    {
+                        centers9N3[i, j, 0] = centerND[j, 0];  // X
+                        centers9N3[i, j, 1] = centerND[j, 1];  // Y
+                        centers9N3[i, j, 2] = centerND[j, 2];  // Z
+                    }
+                }
+//                NDArray centers9N3 = centerND;
+//                NDArray centers9N3 = np.tile(centerND, (9, 1)).reshape(9, N, 3);
+                NDArray mirroredFlat = (centers9N3 + offset9N3).reshape(N * 9, 3);
+
                 var kdPoints = new List<double[]>();
+                var mirroredPoints = new List<Vector3>();
                 var kdValues = new List<int>();
-                var mirroredPoints = new List<Point3D>();
                 var originalIndices = new List<int>();
 
-                for (int dx = -1; dx <= 1; dx++)
+                for (int i = 0; i < mirroredFlat.shape[0]; i++)
                 {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        for (int i = 0; i < centers.Count; i++)
-                        {
-                            var pt = new Point3D(
-                                centers[i].X + dx * _tileWidth,
-                                centers[i].Y + dy * _tileHeight,
-                                centers[i].Z);
+                    double x = (double)mirroredFlat[i, 0];
+                    double y = (double)mirroredFlat[i, 1];
+                    double z = (double)mirroredFlat[i, 2];
 
-                            kdPoints.Add(new double[] { pt.X, pt.Y });
-                            kdValues.Add(mirroredPoints.Count);
-                            mirroredPoints.Add(pt);
-                            originalIndices.Add(i);
-                        }
-                    }
+                    kdPoints.Add(new double[] { x, y });
+                    mirroredPoints.Add(new Vector3((float)x, (float)y, (float)z));
+                    kdValues.Add(i);
+                    originalIndices.Add(i % N);
                 }
 
                 var tree = new KDTree<double, int>(
                     2,
                     kdPoints.ToArray(),
                     kdValues.ToArray(),
-                    new Func<double[], double[], double>(delegate (double[] a, double[] b)
+                    (a, b) =>
                     {
                         double dx = a[0] - b[0];
                         double dy = a[1] - b[1];
                         return Math.Sqrt(dx * dx + dy * dy);
-                    })
+                    }
                 );
 
                 // ========== 斥力计算 ==========
@@ -82,7 +125,7 @@ namespace CrvGrowth
 
                         var mirrorJ = mirroredPoints[idx];
                         var delta = centers[i] - mirrorJ;
-                        double d = delta.Length;
+                        double d = delta.Length();
                         if (d < 0.001) continue;
 
                         double factorI = EvaluateDensityFactor(centers[i], repellers, repellerFactors);
@@ -94,7 +137,7 @@ namespace CrvGrowth
                         double maxStep = baseDist * 0.5;
                         pushStrength = Math.Min(pushStrength, maxStep);
 
-                        var move = delta.Normalized * pushStrength;
+                        var move = Vector3.Normalize(delta) * (float)pushStrength;
                         totalMoves[i] += move;
                         totalMoves[j] -= move;
                         collisionCounts[i] += 1.0;
@@ -105,7 +148,7 @@ namespace CrvGrowth
                 for (int i = 0; i < centers.Count; i++)
                 {
                     if (collisionCounts[i] > 0.0)
-                        centers[i] += totalMoves[i] / collisionCounts[i];
+                        centers[i] += totalMoves[i] / (float)collisionCounts[i];
                 }
 
                 // ========== 插值生长 ==========
@@ -119,7 +162,7 @@ namespace CrvGrowth
                         double factorB = EvaluateDensityFactor(centers[i + 1], repellers, repellerFactors);
                         double insertThreshold = baseDist * 0.5 * (factorA + factorB) - 1.0;
 
-                        if ((centers[i] - centers[i + 1]).Length > insertThreshold)
+                        if (Vector3.Distance(centers[i], centers[i + 1]) > insertThreshold)
                             splitIndices.Add(i + 1 + splitIndices.Count);
                     }
 
@@ -127,10 +170,7 @@ namespace CrvGrowth
                     {
                         var a = centers[splitIndex - 1];
                         var b = centers[splitIndex];
-                        var newCenter = new Point3D(
-                            0.5 * (a.X + b.X),
-                            0.5 * (a.Y + b.Y),
-                            0.5 * (a.Z + b.Z));
+                        var newCenter = 0.5f * (a + b);
                         centers.Insert(splitIndex, newCenter);
 
                         if (centers.Count >= maxPointCount) break;
@@ -141,14 +181,14 @@ namespace CrvGrowth
             return centers;
         }
 
-        private double EvaluateDensityFactor(Point3D pt, List<Point3D> repellers, List<double> factors)
+        private double EvaluateDensityFactor(Vector3 pt, List<Vector3> repellers, List<double> factors)
         {
             if (repellers.Count == 0) return 1.0;
             double maxLocalFactor = 1.0;
 
             for (int i = 0; i < repellers.Count; i++)
             {
-                double d = (pt - repellers[i]).Length;
+                double d = Vector3.Distance(pt, repellers[i]);
                 if (d > _maxEffectDist) continue;
 
                 double t = d / _maxEffectDist;
@@ -162,4 +202,5 @@ namespace CrvGrowth
             return maxLocalFactor;
         }
     }
+    
 }
