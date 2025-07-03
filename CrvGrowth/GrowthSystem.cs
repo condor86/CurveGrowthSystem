@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace CrvGrowth
 {
@@ -12,28 +13,28 @@ namespace CrvGrowth
         private readonly double _maxFactor = 1.5;
         private readonly double _maxEffectDist = 300.0;
 
-        public List<Point3D> Run(
-            List<Point3D> starting,
-            List<Point3D> repellers,
+        public List<Vector3> Run(
+            List<Vector3> starting,
+            List<Vector3> repellers,
             List<double> repellerFactors,
             int maxPointCount = 200,
             int maxIterCount = 200,
             double baseDist = 75.0)
         {
-            var centers = new List<Point3D>(starting);
+            var centers = new List<Vector3>(starting);
 
             for (int iter = 0; iter < maxIterCount; iter++)
             {
                 if (centers.Count >= maxPointCount)
                     break;
 
-                var totalMoves = Enumerable.Repeat(Vector3D.Zero, centers.Count).ToList();
+                var totalMoves = Enumerable.Repeat(Vector3.Zero, centers.Count).ToList();
                 var collisionCounts = Enumerable.Repeat(0.0, centers.Count).ToList();
 
                 // ========== 创建镜像点并插入 KDTree ==========
                 var kdPoints = new List<double[]>();
                 var kdValues = new List<int>();
-                var mirroredPoints = new List<Point3D>();
+                var mirroredPoints = new List<Vector3>();
                 var originalIndices = new List<int>();
 
                 for (int dx = -1; dx <= 1; dx++)
@@ -42,9 +43,9 @@ namespace CrvGrowth
                     {
                         for (int i = 0; i < centers.Count; i++)
                         {
-                            var pt = new Point3D(
-                                centers[i].X + dx * _tileWidth,
-                                centers[i].Y + dy * _tileHeight,
+                            var pt = new Vector3(
+                                (float)(centers[i].X + dx * _tileWidth),
+                                (float)(centers[i].Y + dy * _tileHeight),
                                 centers[i].Z);
 
                             kdPoints.Add(new double[] { pt.X, pt.Y });
@@ -59,12 +60,12 @@ namespace CrvGrowth
                     2,
                     kdPoints.ToArray(),
                     kdValues.ToArray(),
-                    new Func<double[], double[], double>(delegate (double[] a, double[] b)
+                    (a, b) =>
                     {
                         double dx = a[0] - b[0];
                         double dy = a[1] - b[1];
                         return Math.Sqrt(dx * dx + dy * dy);
-                    })
+                    }
                 );
 
                 // ========== 斥力计算 ==========
@@ -82,7 +83,8 @@ namespace CrvGrowth
 
                         var mirrorJ = mirroredPoints[idx];
                         var delta = centers[i] - mirrorJ;
-                        double d = delta.Length;
+                        double d = delta.Length();
+
                         if (d < 0.001) continue;
 
                         double factorI = EvaluateDensityFactor(centers[i], repellers, repellerFactors);
@@ -94,7 +96,7 @@ namespace CrvGrowth
                         double maxStep = baseDist * 0.5;
                         pushStrength = Math.Min(pushStrength, maxStep);
 
-                        var move = delta.Normalized * pushStrength;
+                        var move = Vector3.Normalize(delta) * (float)pushStrength;
                         totalMoves[i] += move;
                         totalMoves[j] -= move;
                         collisionCounts[i] += 1.0;
@@ -105,7 +107,7 @@ namespace CrvGrowth
                 for (int i = 0; i < centers.Count; i++)
                 {
                     if (collisionCounts[i] > 0.0)
-                        centers[i] += totalMoves[i] / collisionCounts[i];
+                        centers[i] += totalMoves[i] / (float)collisionCounts[i];
                 }
 
                 // ========== 插值生长 ==========
@@ -119,7 +121,7 @@ namespace CrvGrowth
                         double factorB = EvaluateDensityFactor(centers[i + 1], repellers, repellerFactors);
                         double insertThreshold = baseDist * 0.5 * (factorA + factorB) - 1.0;
 
-                        if ((centers[i] - centers[i + 1]).Length > insertThreshold)
+                        if (Vector3.Distance(centers[i], centers[i + 1]) > insertThreshold)
                             splitIndices.Add(i + 1 + splitIndices.Count);
                     }
 
@@ -127,10 +129,7 @@ namespace CrvGrowth
                     {
                         var a = centers[splitIndex - 1];
                         var b = centers[splitIndex];
-                        var newCenter = new Point3D(
-                            0.5 * (a.X + b.X),
-                            0.5 * (a.Y + b.Y),
-                            0.5 * (a.Z + b.Z));
+                        var newCenter = 0.5f * (a + b);
                         centers.Insert(splitIndex, newCenter);
 
                         if (centers.Count >= maxPointCount) break;
@@ -141,14 +140,14 @@ namespace CrvGrowth
             return centers;
         }
 
-        private double EvaluateDensityFactor(Point3D pt, List<Point3D> repellers, List<double> factors)
+        private double EvaluateDensityFactor(Vector3 pt, List<Vector3> repellers, List<double> factors)
         {
             if (repellers.Count == 0) return 1.0;
             double maxLocalFactor = 1.0;
 
             for (int i = 0; i < repellers.Count; i++)
             {
-                double d = (pt - repellers[i]).Length;
+                double d = Vector3.Distance(pt, repellers[i]);
                 if (d > _maxEffectDist) continue;
 
                 double t = d / _maxEffectDist;

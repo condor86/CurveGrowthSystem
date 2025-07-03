@@ -46,27 +46,28 @@ namespace CrvGrowth
             
             var resultCrv = flatCurve;
 
-            
             // 保存平面曲线
             IOHelper.SavePointsToFile(resultPathCrv, resultCrv);
-            Console.WriteLine($"共生成 {resultCrv.Count()} 个点，结果已保存至：{resultPathCrv}");
+            Console.WriteLine($"共生成 {resultCrv.Count} 个点，结果已保存至：{resultPathCrv}");
             
             stopwatch1.Stop(); 
             Console.WriteLine($"Step1 平面生形耗时: {stopwatch1.ElapsedMilliseconds} ms");
 
             var stopwatch2 = Stopwatch.StartNew();
 
-            // 生成完整几何体
-            List<Point3D> verticalCrv = flatCurve.Select(p => p.RotateXYToXZ()).ToList();
+            // 生成完整几何体：将 XY 平面转为 XZ（Y → Z）
+            List<Vector3> verticalCrv = flatCurve
+                .Select(p => new Vector3(p.X, 0.0f, p.Y))
+                .ToList();
 
-            var extrudedCrv = new List<Point3D>(verticalCrv.Count);
-            double offset = 100.0;
-            
+            var extrudedCrv = new List<Vector3>(verticalCrv.Count);
+            float offset = 100.0f;
+
             foreach (var pt in verticalCrv)
             {
-                extrudedCrv.Add(new Point3D(pt.X, pt.Y - offset, pt.Z));
+                extrudedCrv.Add(new Vector3(pt.X, pt.Y - offset, pt.Z));
             }
-            
+
             // 光照模拟
             var simulator = new LightingSimulator(
                 verticalCurve: verticalCrv,

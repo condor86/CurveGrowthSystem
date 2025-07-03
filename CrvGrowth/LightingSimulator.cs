@@ -2,13 +2,14 @@
 using System.IO;
 using System.Globalization;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace CrvGrowth
 {
     public class LightingSimulator
     {
-        private readonly List<Point3D> _verticalCurve;
-        private readonly List<Point3D> _extrudedCurve;
+        private readonly List<Vector3> _verticalCurve;
+        private readonly List<Vector3> _extrudedCurve;
 
         private readonly DateOnly _date;
         private readonly TimeOnly _startTime;
@@ -19,15 +20,15 @@ namespace CrvGrowth
         private readonly double _roomDepth;
         private readonly double _gridSize;
 
-        private Point3D[,] _gridCenters;
+        private Vector3[,] _gridCenters;
         private int _gridCols;
         private int _gridRows;
 
         private int[,] _lightHourGrid;
 
         public LightingSimulator(
-            List<Point3D> verticalCurve,
-            List<Point3D> extrudedCurve,
+            List<Vector3> verticalCurve,
+            List<Vector3> extrudedCurve,
             DateOnly date,
             TimeOnly startTime,
             TimeOnly endTime,
@@ -57,16 +58,16 @@ namespace CrvGrowth
         {
             _gridCols = (int)Math.Ceiling(_roomWidth / _gridSize);
             _gridRows = (int)Math.Ceiling(_roomDepth / _gridSize);
-            _gridCenters = new Point3D[_gridCols, _gridRows];
+            _gridCenters = new Vector3[_gridCols, _gridRows];
             _lightHourGrid = new int[_gridCols, _gridRows];
 
             for (int x = 0; x < _gridCols; x++)
             {
                 for (int y = 0; y < _gridRows; y++)
                 {
-                    double cx = (x + 0.5) * _gridSize;
-                    double cy = (y + 0.5) * _gridSize;
-                    _gridCenters[x, y] = new Point3D(cx, cy, 0.0);
+                    float cx = (float)((x + 0.5) * _gridSize);
+                    float cy = (float)((y + 0.5) * _gridSize);
+                    _gridCenters[x, y] = new Vector3(cx, cy, 0f);
                     _lightHourGrid[x, y] = 0;
                 }
             }
@@ -82,12 +83,10 @@ namespace CrvGrowth
             {
                 double hour = currentTime.Hour + currentTime.Minute / 60.0;
 
-//                Vector3D sunDir = GetSunDirection(hour);
-                Vector3D sunDir = new Vector3D(0, 1, -1).Normalized;
+                Vector3 sunDir = Vector3.Normalize(new Vector3(0, 1, -1)); // 或使用 GetSunDirection(hour)
 
                 Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向：{sunDir}");
 
-                // 每个时间点初始化 shadowGrid
                 bool[,] shadowGrid = new bool[_gridCols, _gridRows];
 
                 for (int i = 0; i < _verticalCurve.Count - 1; i++)
@@ -102,10 +101,10 @@ namespace CrvGrowth
                     var p2 = ProjectOntoXY(b1, sunDir);
                     var p3 = ProjectOntoXY(b0, sunDir);
 
-                    double minX = Math.Min(Math.Min(p0.X, p1.X), Math.Min(p2.X, p3.X));
-                    double maxX = Math.Max(Math.Max(p0.X, p1.X), Math.Max(p2.X, p3.X));
-                    double minY = Math.Min(Math.Min(p0.Y, p1.Y), Math.Min(p2.Y, p3.Y));
-                    double maxY = Math.Max(Math.Max(p0.Y, p1.Y), Math.Max(p2.Y, p3.Y));
+                    float minX = MathF.Min(MathF.Min(p0.X, p1.X), MathF.Min(p2.X, p3.X));
+                    float maxX = MathF.Max(MathF.Max(p0.X, p1.X), MathF.Max(p2.X, p3.X));
+                    float minY = MathF.Min(MathF.Min(p0.Y, p1.Y), MathF.Min(p2.Y, p3.Y));
+                    float maxY = MathF.Max(MathF.Max(p0.Y, p1.Y), MathF.Max(p2.Y, p3.Y));
 
                     int minCol = Math.Max(0, (int)Math.Floor(minX / _gridSize));
                     int maxCol = Math.Min(_gridCols - 1, (int)Math.Ceiling(maxX / _gridSize));
@@ -116,7 +115,7 @@ namespace CrvGrowth
                     {
                         for (int y = minRow; y <= maxRow; y++)
                         {
-                            Point3D center = _gridCenters[x, y];
+                            Vector3 center = _gridCenters[x, y];
                             if (PointInQuad(center, p0, p1, p2, p3))
                             {
                                 shadowGrid[x, y] = true;
@@ -125,7 +124,6 @@ namespace CrvGrowth
                     }
                 }
 
-                // 将当前 shadowGrid 的结果累计到 light hour 统计矩阵中
                 for (int x = 0; x < _gridCols; x++)
                 {
                     for (int y = 0; y < _gridRows; y++)
@@ -140,7 +138,6 @@ namespace CrvGrowth
 
             Console.WriteLine("所有时段光照模拟完成，已更新累计光照小时矩阵。");
         }
-
 
         public void SaveLightHourGrid(string filePath)
         {
@@ -162,18 +159,18 @@ namespace CrvGrowth
             Console.WriteLine($"累计光照小时数（两行格式）已保存到：{filePath}");
         }
 
-        private Point3D ProjectOntoXY(Point3D p, Vector3D dir)
+        private Vector3 ProjectOntoXY(Vector3 p, Vector3 dir)
         {
-            double t = -p.Z / dir.Z;
-            return new Point3D(p.X + t * dir.X, p.Y + t * dir.Y, 0.0);
+            float t = -p.Z / dir.Z;
+            return new Vector3(p.X + t * dir.X, p.Y + t * dir.Y, 0f);
         }
 
-        private bool PointInQuad(Point3D p, Point3D a, Point3D b, Point3D c, Point3D d)
+        private bool PointInQuad(Vector3 p, Vector3 a, Vector3 b, Vector3 c, Vector3 d)
         {
-            bool SameSide(Point3D p1, Point3D p2, Point3D a1, Point3D a2)
+            bool SameSide(Vector3 p1, Vector3 p2, Vector3 a1, Vector3 a2)
             {
-                double cp1 = (a2.X - a1.X) * (p1.Y - a1.Y) - (a2.Y - a1.Y) * (p1.X - a1.X);
-                double cp2 = (a2.X - a1.X) * (p2.Y - a1.Y) - (a2.Y - a1.Y) * (p2.X - a1.X);
+                float cp1 = (a2.X - a1.X) * (p1.Y - a1.Y) - (a2.Y - a1.Y) * (p1.X - a1.X);
+                float cp2 = (a2.X - a1.X) * (p2.Y - a1.Y) - (a2.Y - a1.Y) * (p2.X - a1.X);
                 return cp1 * cp2 >= 0;
             }
 
@@ -182,7 +179,7 @@ namespace CrvGrowth
                    SameSide(p, a, c, d) &&
                    SameSide(p, b, d, a);
         }
-        
+
         private double GetSolarAngle(double hour)
         {
             if (hour <= 12.0)
@@ -191,14 +188,13 @@ namespace CrvGrowth
                 return 65.0 - 40.0 * ((hour - 12.0) / 4.0); // 65° → 25°
         }
 
-        private Vector3D GetSunDirection(double hour)
+        private Vector3 GetSunDirection(double hour)
         {
             double thetaDeg = GetSolarAngle(hour);
             double thetaRad = thetaDeg * Math.PI / 180.0;
-            double y = Math.Cos(thetaRad);
-            double z = -Math.Sin(thetaRad);
-            return new Vector3D(0, y, z).Normalized;
+            float y = (float)Math.Cos(thetaRad);
+            float z = (float)-Math.Sin(thetaRad);
+            return Vector3.Normalize(new Vector3(0, y, z));
         }
-
     }
 }
