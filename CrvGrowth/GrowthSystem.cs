@@ -1,9 +1,6 @@
 ﻿using Supercluster.KDTree;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Runtime.InteropServices;
 using NumSharp;
 
 namespace CrvGrowth
@@ -15,38 +12,26 @@ namespace CrvGrowth
         private readonly double _maxFactor = 1.5;
         private readonly double _maxEffectDist = 300.0;
 
-        public List<Vector3> Run(
-            List<Vector3> starting,
-            List<Vector3> repellers,
-            List<double> repellerFactors,
+        public NDArray Run(
+            NDArray starting,           // [N, 3]
+            NDArray repellers,          // [M, 3]
+            NDArray repellerFactors,    // [M]
             int maxPointCount = 200,
             int maxIterCount = 200,
             double baseDist = 75.0)
         {
-            var centers = new List<Vector3>(starting);
+            var centers = starting.copy();  // [N, 3]
 
             for (int iter = 0; iter < maxIterCount; iter++)
             {
-                if (centers.Count >= maxPointCount)
-                    break;
+                int N = centers.shape[0];
+                if (N >= maxPointCount) break;
 
-                var totalMoves = Enumerable.Repeat(Vector3.Zero, centers.Count).ToList();
-                var collisionCounts = Enumerable.Repeat(0.0, centers.Count).ToList();
+                var totalMoves = np.zeros_like(centers);  // [N, 3]
+                var collisionCounts = np.zeros(N);        // [N]
 
-                // ========== 使用 NumSharp 向量化创建镜像点 ==========
-                int N = centers.Count;
-                double[,] centerArray = new double[N, 3];
-                for (int i = 0; i < N; i++)
-                {
-                    centerArray[i, 0] = centers[i].X;
-                    centerArray[i, 1] = centers[i].Y;
-                    centerArray[i, 2] = centers[i].Z;
-                }
-                NDArray centerND = np.array(centerArray);  // [N, 3]
-//                Console.WriteLine("centerND:");
-//                Console.WriteLine(centerND.ToString(true));
-                
-                NDArray offsets = np.array(new double[,]
+                // === 构造镜像点 ===
+                var offsets = np.array(new double[,]
                 {
                     {-_tileWidth, -_tileHeight},
                     { 0,         -_tileHeight},
@@ -59,30 +44,18 @@ namespace CrvGrowth
                     {_tileWidth,  _tileHeight}
                 });  // [9, 2]
 
-                NDArray offset9N3 = np.zeros((9, N, 3));
-                offset9N3[$":", $":", 0] = offsets[$":", 0].reshape(9, 1);
-                offset9N3[$":", $":", 1] = offsets[$":", 1].reshape(9, 1);
-                
-//                Console.WriteLine("offsets:\n" + offsets.ToString());
-//                Console.WriteLine("offset9N3:\n" + offset9N3.ToString());
-                // 创建 shape 为 [9, N, 3] 的空数组
-                NDArray centers9N3 = np.zeros((9, N, 3));
+                var offset9N3 = np.zeros((9, N, 3));
+                offset9N3[":", ":", 0] = offsets[":", 0].reshape(9, 1);
+                offset9N3[":", ":", 1] = offsets[":", 1].reshape(9, 1);
 
-                for (int i = 0; i < 9; i++)  // 9 个镜像方向
-                {
-                    for (int j = 0; j < N; j++)  // N 个点
-                    {
-                        centers9N3[i, j, 0] = centerND[j, 0];  // X
-                        centers9N3[i, j, 1] = centerND[j, 1];  // Y
-                        centers9N3[i, j, 2] = centerND[j, 2];  // Z
-                    }
-                }
-//                NDArray centers9N3 = centerND;
-//                NDArray centers9N3 = np.tile(centerND, (9, 1)).reshape(9, N, 3);
-                NDArray mirroredFlat = (centers9N3 + offset9N3).reshape(N * 9, 3);
+                var centers9N3 = np.zeros(new Shape(9, N, 3));
+                for (int i = 0; i < 9; i++)
+                    centers9N3[i, ":", ":"] = centers[":", ":"];
 
+                var mirroredFlat = (centers9N3 + offset9N3).reshape(9 * N, 3); // [9N, 3]
+
+                // === 构造 KDTree 数据 ===
                 var kdPoints = new List<double[]>();
-                var mirroredPoints = new List<Vector3>();
                 var kdValues = new List<int>();
                 var originalIndices = new List<int>();
 
@@ -90,10 +63,7 @@ namespace CrvGrowth
                 {
                     double x = (double)mirroredFlat[i, 0];
                     double y = (double)mirroredFlat[i, 1];
-                    double z = (double)mirroredFlat[i, 2];
-
                     kdPoints.Add(new double[] { x, y });
-                    mirroredPoints.Add(new Vector3((float)x, (float)y, (float)z));
                     kdValues.Add(i);
                     originalIndices.Add(i % N);
                 }
@@ -107,29 +77,36 @@ namespace CrvGrowth
                         double dx = a[0] - b[0];
                         double dy = a[1] - b[1];
                         return Math.Sqrt(dx * dx + dy * dy);
-                    }
-                );
+                    });
 
-                // ========== 斥力计算 ==========
-                for (int i = 0; i < centers.Count; i++)
+                // === 斥力运算 ===
+                for (int i = 0; i < N; i++)
                 {
-                    double maxSearchRadius = baseDist * _maxFactor;
+                    var centerPt = centers[i, ":"];
                     var neighbors = tree.RadialSearch(
-                        new double[] { centers[i].X, centers[i].Y },
-                        maxSearchRadius);
+                        new double[] {
+                            (double)centerPt[0],
+                            (double)centerPt[1]
+                        },
+                        baseDist * _maxFactor);
 
-                    foreach (var (point, idx) in neighbors)
+                    foreach (var (pt, idx) in neighbors)
                     {
                         int j = originalIndices[idx];
                         if (j == i) continue;
 
-                        var mirrorJ = mirroredPoints[idx];
-                        var delta = centers[i] - mirrorJ;
-                        double d = delta.Length();
+                        var mirrorJ = mirroredFlat[idx, ":"];
+                        var delta = centerPt - mirrorJ;
+
+                        double d = Math.Sqrt(
+                            Math.Pow((double)delta[0], 2) +
+                            Math.Pow((double)delta[1], 2) +
+                            Math.Pow((double)delta[2], 2)
+                        );
                         if (d < 0.001) continue;
 
-                        double factorI = EvaluateDensityFactor(centers[i], repellers, repellerFactors);
-                        double factorJ = EvaluateDensityFactor(centers[j], repellers, repellerFactors);
+                        double factorI = EvaluateDensityFactor(centerPt, repellers, repellerFactors);
+                        double factorJ = EvaluateDensityFactor(centers[j, ":"], repellers, repellerFactors);
                         double localDist = baseDist * 0.5 * (factorI + factorJ);
                         if (d > localDist) continue;
 
@@ -137,63 +114,82 @@ namespace CrvGrowth
                         double maxStep = baseDist * 0.5;
                         pushStrength = Math.Min(pushStrength, maxStep);
 
-                        var move = Vector3.Normalize(delta) * (float)pushStrength;
-                        totalMoves[i] += move;
-                        totalMoves[j] -= move;
+                        var move = delta / d * pushStrength;
+                        totalMoves[i, ":"] += move;
+                        totalMoves[j, ":"] -= move;
                         collisionCounts[i] += 1.0;
                         collisionCounts[j] += 1.0;
                     }
                 }
 
-                for (int i = 0; i < centers.Count; i++)
+                // === 应用运动 ===
+                for (int i = 0; i < N; i++)
                 {
                     if (collisionCounts[i] > 0.0)
-                        centers[i] += totalMoves[i] / (float)collisionCounts[i];
+                        centers[i, ":"] += totalMoves[i, ":"] / collisionCounts[i];
                 }
 
-                // ========== 插值生长 ==========
-                if (centers.Count < maxPointCount)
+                // === 插值添加点 ===
+                N = centers.shape[0];
+                if (N >= maxPointCount) break;
+
+                var splitIndices = new List<int>();
+                for (int i = 0; i < N - 1; i++)
                 {
-                    var splitIndices = new List<int>();
+                    double factorA = EvaluateDensityFactor(centers[i, ":"], repellers, repellerFactors);
+                    double factorB = EvaluateDensityFactor(centers[i + 1, ":"], repellers, repellerFactors);
+                    double insertThreshold = baseDist * 0.5 * (factorA + factorB) - 1.0;
 
-                    for (int i = 0; i < centers.Count - 1; i++)
+                    var diff = centers[i + 1, ":"] - centers[i, ":"];
+                    double d = Math.Sqrt(
+                        Math.Pow((double)diff[0], 2) +
+                        Math.Pow((double)diff[1], 2) +
+                        Math.Pow((double)diff[2], 2)
+                    );
+
+                    if (d > insertThreshold)
+                        splitIndices.Add(i + 1 + splitIndices.Count);
+                }
+
+                if (splitIndices.Count > 0)
+                {
+                    var newCenters = new List<NDArray>();
+                    for (int i = 0; i < N; i++)
+                        newCenters.Add(centers[i, ":"].reshape(1, 3));
+
+                    foreach (int idx in splitIndices)
                     {
-                        double factorA = EvaluateDensityFactor(centers[i], repellers, repellerFactors);
-                        double factorB = EvaluateDensityFactor(centers[i + 1], repellers, repellerFactors);
-                        double insertThreshold = baseDist * 0.5 * (factorA + factorB) - 1.0;
-
-                        if (Vector3.Distance(centers[i], centers[i + 1]) > insertThreshold)
-                            splitIndices.Add(i + 1 + splitIndices.Count);
+                        if (newCenters.Count >= maxPointCount) break;
+                        var mid = 0.5 * (newCenters[idx - 1] + newCenters[idx]);
+                        newCenters.Insert(idx, mid);
                     }
 
-                    foreach (int splitIndex in splitIndices)
-                    {
-                        var a = centers[splitIndex - 1];
-                        var b = centers[splitIndex];
-                        var newCenter = 0.5f * (a + b);
-                        centers.Insert(splitIndex, newCenter);
-
-                        if (centers.Count >= maxPointCount) break;
-                    }
+                    centers = np.concatenate(newCenters.ToArray(), axis: 0);
                 }
             }
 
-            return centers;
+            return centers;  // [N_final, 3]
         }
 
-        private double EvaluateDensityFactor(Vector3 pt, List<Vector3> repellers, List<double> factors)
+        private double EvaluateDensityFactor(NDArray pt, NDArray repellers, NDArray factors)
         {
-            if (repellers.Count == 0) return 1.0;
+            if (repellers.shape[0] == 0) return 1.0;
+
             double maxLocalFactor = 1.0;
+            int M = repellers.shape[0];
 
-            for (int i = 0; i < repellers.Count; i++)
+            for (int i = 0; i < M; i++)
             {
-                double d = Vector3.Distance(pt, repellers[i]);
-                if (d > _maxEffectDist) continue;
+                double dx = (double)repellers[i, 0] - (double)pt[0];
+                double dy = (double)repellers[i, 1] - (double)pt[1];
+                double dz = (double)repellers[i, 2] - (double)pt[2];
+                double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
-                double t = d / _maxEffectDist;
-                double repellerStrength = factors[Math.Min(i, factors.Count - 1)];
-                double localFactor = 1.0 + (_maxFactor - 1.0) * repellerStrength * (1.0 - t);
+                if (dist > _maxEffectDist) continue;
+
+                double t = dist / _maxEffectDist;
+                double strength = (double)factors[i];
+                double localFactor = 1.0 + (_maxFactor - 1.0) * strength * (1.0 - t);
 
                 if (localFactor > maxLocalFactor)
                     maxLocalFactor = localFactor;
@@ -202,5 +198,4 @@ namespace CrvGrowth
             return maxLocalFactor;
         }
     }
-    
 }
