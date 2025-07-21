@@ -103,7 +103,43 @@ namespace CrvGrowth
                         collisionCounts[j] += 1.0;
                     }
                 }
+                
+                // === 满足终止条件时输出 totalMoves 与 collisionCounts ===
+                if (iter == 1)
+                {
+                    // 根目录路径（即可执行文件所在目录）
+                    string rootDir = AppDomain.CurrentDomain.BaseDirectory;
 
+                    // 上级目录，用于保存输出结果
+                    string parentDir = Path.GetFullPath(Path.Combine(rootDir, "..", "..", ".."));
+    
+                    string movePath = Path.Combine(parentDir, "resultsTotalMoves.csv");
+                    string countPath = Path.Combine(parentDir, "resultsCollisionCounts.csv");
+
+                    // 输出 totalMoves 为 CSV，每行为 x,y,z
+                    using (var writer = new StreamWriter(movePath))
+                    {
+                        for (int i = 0; i < totalMoves.Count; i++)
+                        {
+                            Vector3 move = totalMoves[i];
+                            writer.WriteLine($"{move.X},{move.Y},{move.Z}");
+                        }
+                    }
+
+                    // 输出 collisionCounts 为 CSV，每行一个值
+                    using (var writer = new StreamWriter(countPath))
+                    {
+                        for (int i = 0; i < collisionCounts.Count; i++)
+                        {
+                            double val = collisionCounts[i];
+                            writer.WriteLine($"{val}");
+                        }
+                    }
+
+                    Console.WriteLine($"测试结果已保存至：{movePath}");
+                }
+
+                
                 for (int i = 0; i < centers.Count; i++)
                 {
                     if (collisionCounts[i] > 0.0)
