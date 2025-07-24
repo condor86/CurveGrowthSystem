@@ -30,7 +30,7 @@ namespace CrvGrowth
 
                 var totalMoves = np.zeros_like(centers);  // [N, 3]
                 var collisionCounts = np.zeros(N);        // [N]
-
+/*
                 // === 构造镜像点 ===
                 var offsets = np.array(new double[,]
                 {
@@ -54,11 +54,46 @@ namespace CrvGrowth
                     centers9N3[i, ":", ":"] = centers[":", ":"];
 
                 var mirroredFlat = (centers9N3 + offset9N3).reshape(9 * N, 3); // [9N, 3]
+*/
+                // 中心和8个镜像块的偏移（对应顺序：左下、下、右下、左、中、右、左上、上、右上）
+                double[] offsetX = { -_tileWidth,  0, _tileWidth, -_tileWidth, 0, _tileWidth, -_tileWidth,  0, _tileWidth };
+                double[] offsetY = { -_tileHeight, -_tileHeight, -_tileHeight, 0,           0, 0,           _tileHeight, _tileHeight, _tileHeight };
 
+                // 构造 [9, N, 3] 镜像数组
+                var centers9N3 = np.zeros(new Shape(9, N, 3));
+                for (int i = 0; i < 9; i++)
+                    centers9N3[i, ":", ":"] = centers;
+
+                // 添加偏移
+                for (int i = 0; i < 9; i++)
+                {
+                    var offset = np.array(new double[] { offsetX[i], offsetY[i], 0 }).reshape(1, 3);
+                    centers9N3[i, ":", ":"] += offset;
+                }
+
+                // 展平成 [9N, 3] 并记录 originalIndices
+                var mirroredFlatList = new List<double[]>();
+                var originalIndices = new List<int>();
+
+                for (int i = 0; i < 9; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        double x = (double)centers9N3[i, j, 0];
+                        double y = (double)centers9N3[i, j, 1];
+                        double z = (double)centers9N3[i, j, 2];
+                        mirroredFlatList.Add(new double[] { x, y, z });
+                        originalIndices.Add(j);  // 对应原始点编号
+                    }
+                }
+
+                var mirroredFlat = np.array(mirroredFlatList.ToArray());  // shape [9N, 3]
+
+                
                 // === 构造 KDTree 数据 ===
                 var kdPoints = new List<double[]>();
                 var kdValues = new List<int>();
-                var originalIndices = new List<int>();
+//                var originalIndices = new List<int>();
 
                 for (int i = 0; i < mirroredFlat.shape[0]; i++)
                 {
@@ -66,9 +101,45 @@ namespace CrvGrowth
                     double y = (double)mirroredFlat[i, 1];
                     kdPoints.Add(new double[] { x, y });
                     kdValues.Add(i);
-                    originalIndices.Add(i % N);
+//                    originalIndices.Add(i % N);
                 }
+                
+                if (iter == 0)
+                {
+                    // 根目录路径（即可执行文件所在目录）
+                    string rootDir = AppDomain.CurrentDomain.BaseDirectory;
 
+                    // 上级目录，用于保存输出结果
+                    string parentDir = Path.GetFullPath(Path.Combine(rootDir, "..", "..", ".."));
+
+                    string mirroredPath = Path.Combine(parentDir, "resultsMirroredFlat.csv");
+                    string indexPath = Path.Combine(parentDir, "resultsOriginalIndices.csv");
+
+                    // 输出 mirroredFlat 为 CSV，每行为 x,y,z
+                    using (var writer = new StreamWriter(mirroredPath))
+                    {
+                        for (int i = 0; i < mirroredFlat.shape[0]; i++)
+                        {
+                            double x = (double)mirroredFlat[i, 0];
+                            double y = (double)mirroredFlat[i, 1];
+                            double z = (double)mirroredFlat[i, 2];
+                            writer.WriteLine($"{x},{y},{z}");
+                        }
+                    }
+
+                    // 输出 originalIndices 为 CSV，每行一个整数
+                    using (var writer = new StreamWriter(indexPath))
+                    {
+                        for (int i = 0; i < originalIndices.Count; i++)
+                        {
+                            writer.WriteLine(originalIndices[i]);
+                        }
+                    }
+
+                    Console.WriteLine($"初始镜像点与索引已输出：\n→ {mirroredPath}\n→ {indexPath}");
+                }
+                
+                
                 var tree = new KDTree<double, int>(
                     2,
                     kdPoints.ToArray(),
