@@ -1,6 +1,7 @@
 ﻿using Supercluster.KDTree;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using NumSharp;
 
 namespace CrvGrowth
@@ -12,6 +13,7 @@ namespace CrvGrowth
         private readonly double _maxFactor = 1.5;
         private readonly double _maxEffectDist = 300.0;
 
+        [SuppressMessage("ReSharper.DPA", "DPA0000: DPA issues")]
         public NDArray Run(
             NDArray starting,           // [N, 3]
             NDArray repellers,          // [M, 3]
@@ -44,6 +46,8 @@ namespace CrvGrowth
                     { 0,          _tileHeight},
                     {_tileWidth,  _tileHeight}
                 });  // [9, 2]
+                
+                
 
                 var offset9N3 = np.zeros((9, N, 3));
                 offset9N3[":", ":", 0] = offsets[":", 0].reshape(9, 1);
@@ -55,6 +59,7 @@ namespace CrvGrowth
 
                 var mirroredFlat = (centers9N3 + offset9N3).reshape(9 * N, 3); // [9N, 3]
 
+                
                 // === 构造 KDTree 数据 ===
                 var kdPoints = new List<double[]>();
                 var kdValues = new List<int>();
@@ -68,7 +73,42 @@ namespace CrvGrowth
                     kdValues.Add(i);
                     originalIndices.Add(i % N);
                 }
+                
+                if (iter == 0)
+                {
+                    // 根目录路径（即可执行文件所在目录）
+                    string rootDir = AppDomain.CurrentDomain.BaseDirectory;
 
+                    // 上级目录，用于保存输出结果
+                    string parentDir = Path.GetFullPath(Path.Combine(rootDir, "..", "..", ".."));
+
+                    string mirroredPath = Path.Combine(parentDir, "resultsMirroredFlat.csv");
+                    string indexPath = Path.Combine(parentDir, "resultsOriginalIndices.csv");
+
+                    // 输出 mirroredFlat 为 CSV，每行为 x,y,z
+                    using (var writer = new StreamWriter(mirroredPath))
+                    {
+                        for (int i = 0; i < mirroredFlat.shape[0]; i++)
+                        {
+                            double x = (double)mirroredFlat[i, 0];
+                            double y = (double)mirroredFlat[i, 1];
+                            double z = (double)mirroredFlat[i, 2];
+                            writer.WriteLine($"{x},{y},{z}");
+                        }
+                    }
+
+                    // 输出 originalIndices 为 CSV，每行一个整数
+                    using (var writer = new StreamWriter(indexPath))
+                    {
+                        for (int i = 0; i < originalIndices.Count; i++)
+                        {
+                            writer.WriteLine(originalIndices[i]);
+                        }
+                    }
+
+                    Console.WriteLine($"初始镜像点与索引已输出：\n→ {mirroredPath}\n→ {indexPath}");
+                }
+                
                 var tree = new KDTree<double, int>(
                     2,
                     kdPoints.ToArray(),
