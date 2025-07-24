@@ -55,9 +55,17 @@ namespace CrvGrowth
 
                 var mirroredFlat = (centers9N3 + offset9N3).reshape(9 * N, 3); // [9N, 3]
 */
-                // 中心和8个镜像块的偏移（对应顺序：左下、下、右下、左、中、右、左上、上、右上）
-                double[] offsetX = { -_tileWidth,  0, _tileWidth, -_tileWidth, 0, _tileWidth, -_tileWidth,  0, _tileWidth };
-                double[] offsetY = { -_tileHeight, -_tileHeight, -_tileHeight, 0,           0, 0,           _tileHeight, _tileHeight, _tileHeight };
+                double[] offsetX = {
+                    -_tileWidth, -_tileWidth, -_tileWidth,
+                    0,            0,           0,
+                    _tileWidth,  _tileWidth,  _tileWidth
+                };
+
+                double[] offsetY = {
+                    -_tileHeight, 0,           _tileHeight,
+                    -_tileHeight, 0,           _tileHeight,
+                    -_tileHeight, 0,           _tileHeight
+                };
 
                 // 构造 [9, N, 3] 镜像数组
                 var centers9N3 = np.zeros(new Shape(9, N, 3));
