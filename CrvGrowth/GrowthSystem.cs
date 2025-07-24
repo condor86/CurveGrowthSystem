@@ -55,7 +55,41 @@ namespace CrvGrowth
                         }
                     }
                 }
+                
+                if (iter == 0)
+                {
+                    // 根目录路径（即可执行文件所在目录）
+                    string rootDir = AppDomain.CurrentDomain.BaseDirectory;
 
+                    // 上级目录，用于保存输出结果
+                    string parentDir = Path.GetFullPath(Path.Combine(rootDir, "..", "..", ".."));
+
+                    string mirroredPath = Path.Combine(parentDir, "resultsMirroredFlat.csv");
+                    string indexPath = Path.Combine(parentDir, "resultsOriginalIndices.csv");
+
+                    // 输出 mirroredFlat 为 CSV，每行为 x,y,z
+                    using (var writer = new StreamWriter(mirroredPath))
+                    {
+                        for (int i = 0; i < mirroredPoints.Count; i++)
+                        {
+                            var pt = mirroredPoints[i];
+                            writer.WriteLine($"{pt.X},{pt.Y},{pt.Z}");
+                        }
+                    }
+
+                    // 输出 originalIndices 为 CSV，每行一个整数
+                    using (var writer = new StreamWriter(indexPath))
+                    {
+                        for (int i = 0; i < originalIndices.Count; i++)
+                        {
+                            writer.WriteLine(originalIndices[i]);
+                        }
+                    }
+
+                    Console.WriteLine($"初始镜像点与索引已输出：\n→ {mirroredPath}\n→ {indexPath}");
+                }
+    
+                
                 var tree = new KDTree<double, int>(
                     2,
                     kdPoints.ToArray(),
