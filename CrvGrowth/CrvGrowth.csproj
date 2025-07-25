@@ -8,13 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <None Update="iRepellerFactors.txt">
+      <None Update="iRepellerFactors.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="iRepellers.txt">
+      <None Update="iRepellers.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="iStartingPositions.txt">
+      <None Update="iStartingPositions.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>

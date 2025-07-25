@@ -12,8 +12,7 @@ namespace CrvGrowth
             var points = new List<Vector3>();
             foreach (var line in File.ReadAllLines(filePath))
             {
-                var trimmed = line.Trim('{', '}', ' ');
-                var parts = trimmed.Split(',');
+                var parts = line.Trim().Split(',');
                 if (parts.Length >= 2 &&
                     float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
                     float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
@@ -34,7 +33,8 @@ namespace CrvGrowth
             var factors = new List<double>();
             foreach (var line in File.ReadAllLines(filePath))
             {
-                if (double.TryParse(line, NumberStyles.Float, CultureInfo.InvariantCulture, out double f))
+                var trimmed = line.Trim();
+                if (double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out double f))
                 {
                     factors.Add(f);
                 }
@@ -48,13 +48,10 @@ namespace CrvGrowth
             for (int i = 0; i < points.Count; i++)
             {
                 var pt = points[i];
-                string line = $"{{{pt.X.ToString(CultureInfo.InvariantCulture)}, " +
-                              $"{pt.Y.ToString(CultureInfo.InvariantCulture)}, " +
-                              $"{pt.Z.ToString(CultureInfo.InvariantCulture)}}}";
-                if (i < points.Count - 1)
-                    writer.WriteLine(line);
-                else
-                    writer.Write(line); // 最后一行不加换行
+                string line = $"{pt.X.ToString(CultureInfo.InvariantCulture)}," +
+                              $"{pt.Y.ToString(CultureInfo.InvariantCulture)}," +
+                              $"{pt.Z.ToString(CultureInfo.InvariantCulture)}";
+                writer.WriteLine(line);
             }
         }
     }

@@ -20,13 +20,13 @@ namespace CrvGrowth
             string parentDir = Path.GetFullPath(Path.Combine(rootDir, "..", "..", ".."));
 
             // 输入文件路径（位于可执行目录中）
-            string startingPath  = Path.Combine(rootDir, "iStartingPositions.txt");
-            string repellerPath  = Path.Combine(rootDir, "iRepellers.txt");
-            string factorPath    = Path.Combine(rootDir, "iRepellerFactors.txt");
+            string startingPath  = Path.Combine(rootDir, "iStartingPositions.csv");
+            string repellerPath  = Path.Combine(rootDir, "iRepellers.csv");
+            string factorPath    = Path.Combine(rootDir, "iRepellerFactors.csv");
 
             // 输出文件路径（保存到工程目录根部）
-            string resultPathCrv      = Path.Combine(parentDir, "resultsCrv.txt");
-            string resultPathLighting = Path.Combine(parentDir, "resultsLighting.txt");
+            string resultPathCrv      = Path.Combine(parentDir, "resultsCrv.csv");
+            string resultPathLighting = Path.Combine(parentDir, "resultsLighting.csv");
 
             // 读取输入
             var startingPoints   = IOHelper.LoadPointsFromFile(startingPath);
