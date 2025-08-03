@@ -8,13 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <None Update="iRepellerFactors.csv">
+      <None Update="data\iRepellerFactors.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="iRepellers.csv">
+      <None Update="data\iRepellers.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="iStartingPositions.csv">
+      <None Update="data\iStartingPositions.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
@@ -23,6 +23,11 @@
       <PackageReference Include="NetTopologySuite" Version="2.6.0" />
       <PackageReference Include="RTree" Version="1.1.0" />
       <PackageReference Include="Supercluster.KDTree" Version="1.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="gh\" />
+      <Folder Include="models\" />
     </ItemGroup>
 
 </Project>
