@@ -196,5 +196,18 @@ namespace CrvGrowth
             float z = (float)-Math.Sin(thetaRad);
             return Vector3.Normalize(new Vector3(0, y, z));
         }
+        
+        public double TotalLightHours()
+        {
+            double sum = 0;
+            for (int x = 0; x < _gridCols; x++)
+            {
+                for (int y = 0; y < _gridRows; y++)
+                {
+                    sum += _lightHourGrid[x, y];
+                }
+            }
+            return sum;
+        }
     }
 }

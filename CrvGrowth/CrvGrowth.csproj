@@ -20,6 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="GeneticSharp" Version="3.1.4" />
       <PackageReference Include="NetTopologySuite" Version="2.6.0" />
       <PackageReference Include="RTree" Version="1.1.0" />
       <PackageReference Include="Supercluster.KDTree" Version="1.0.4" />

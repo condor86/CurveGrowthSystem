@@ -4,6 +4,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using GeneticSharp;
 
 namespace CrvGrowth
 {
@@ -87,6 +88,59 @@ namespace CrvGrowth
             
             stopwatch2.Stop(); 
             Console.WriteLine($"Step2 光照模拟耗时: {stopwatch2.ElapsedMilliseconds} ms");
+            
+            // ========== Step3 NSGA-II 多目标优化 ==========
+            var stopwatch3 = Stopwatch.StartNew();
+
+            // 使用 verticalCrv 作为 baseCurve（原始 GrowthSystem 输出 → 转 Y→Z）
+            var baseCurve = verticalCrv;
+
+            var population = new GeneticSharp.Population(
+                50, 50, new Chromosome404());
+
+            var selection = new NSGA2Selection();
+            var crossover = new SimulatedBinaryCrossover(0.9, 20);
+            var mutation = new PolynomialMutation(1.0 / 404.0, 20);
+
+            var fitness = new FitnessEvaluator(baseCurve);
+            var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation);
+            ga.Termination = new GenerationNumberTermination(100);
+
+            // 使用真实多目标评分函数（LightingEvaluator）
+            ga.UseMultiObjective((IChromosome ch) =>
+            {
+                var genes = ((Chromosome404)ch).ToArray();
+                var (summer, winter) = LightingEvaluator.Evaluate(baseCurve, genes);
+
+                return new double[]
+                {
+                    summer,      // 越小越好
+                    -winter      // 越小越好（冬季越大越好，取负）
+                };
+            });
+
+            // 每代输出日志 + 记录最优基因
+            string bestGenesPath = Path.Combine(parentDir, "results", "bestGenes.csv");
+            using var bestGenesWriter = new StreamWriter(bestGenesPath);
+            bestGenesWriter.WriteLine(string.Join(",", Enumerable.Range(1, 404).Select(i => $"Gene{i}")));  // 表头
+
+            ga.GenerationRan += (sender, e) =>
+            {
+                var best = ga.BestChromosome as Chromosome404;
+                var genes = best.ToArray();
+                var (s, w) = LightingEvaluator.Evaluate(baseCurve, genes);
+                Console.WriteLine($"Gen {ga.GenerationsNumber}: Summer={s:F2}, Winter={w:F2}");
+
+                // 写入每代最优基因
+                bestGenesWriter.WriteLine(string.Join(",", genes.Select(v => v.ToString("F4"))));
+            };
+
+            Console.WriteLine("Step3 开始 NSGA-II 多目标优化...");
+            ga.Start();
+            stopwatch3.Stop();
+            Console.WriteLine($"Step3 多目标优化完成，耗时: {stopwatch3.ElapsedMilliseconds} ms");
+            Console.WriteLine($"每代最优解已保存至：{bestGenesPath}");
+
         }
     }
 }
