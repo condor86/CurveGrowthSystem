@@ -45,7 +45,7 @@ namespace CrvGrowth
             string nsgaLogDir = Path.Combine(resultDir, "nsga_logs");
             Directory.CreateDirectory(nsgaLogDir);
 
-            // === NSGA-II 配置（与 Wallacei 对齐）===
+            // === NSGA-II 配置===
             var cfg = new NSGAConfig
             {
                 PopulationSize = 50,

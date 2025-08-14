@@ -72,12 +72,12 @@ namespace CrvGrowth
                 }
             }
 
-            Console.WriteLine($"初始化网格成功：列数 {_gridCols}, 行数 {_gridRows}, 单元格大小 {_gridSize}");
+            //Console.WriteLine($"初始化网格成功：列数 {_gridCols}, 行数 {_gridRows}, 单元格大小 {_gridSize}");
         }
 
         public void RunSimulation()
         {
-            Console.WriteLine("开始进行每日多时段光照模拟（含动态太阳角度）...");
+            //Console.WriteLine("开始进行每日多时段光照模拟（含动态太阳角度）...");
 
             for (var currentTime = _startTime; currentTime <= _endTime; currentTime = currentTime.Add(_interval))
             {
@@ -85,7 +85,7 @@ namespace CrvGrowth
 
                 Vector3 sunDir = Vector3.Normalize(new Vector3(0, 1, -1)); // 或使用 GetSunDirection(hour)
 
-                Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向：{sunDir}");
+                //Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向：{sunDir}");
 
                 bool[,] shadowGrid = new bool[_gridCols, _gridRows];
 
@@ -136,7 +136,7 @@ namespace CrvGrowth
                 }
             }
 
-            Console.WriteLine("所有时段光照模拟完成，已更新累计光照小时矩阵。");
+            //Console.WriteLine("所有时段光照模拟完成，已更新累计光照小时矩阵。");
         }
 
         public void SaveLightHourGrid(string filePath)
@@ -156,7 +156,7 @@ namespace CrvGrowth
                 }
             }
 
-            Console.WriteLine($"累计光照小时数（两行格式）已保存到：{filePath}");
+            //Console.WriteLine($"累计光照小时数（两行格式）已保存到：{filePath}");
         }
 
         private Vector3 ProjectOntoXY(Vector3 p, Vector3 dir)

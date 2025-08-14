@@ -1,39 +1,71 @@
 // File: CrvGrowth/NSGAWiring.cs
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 
 namespace CrvGrowth
 {
     /// <summary>
-    /// 将 GrowthSystem 与 LightingSimulator 通过 Evaluate(genes) 串联起来，
-    /// 供 NSGA-II 的 NSGAConfig.Evaluate 回调直接使用。
+    /// 评估上下文（可选）：用于在 NSGA-II 中设置“当前代数/个体编号”，
+    /// 让 NSGAWiring 可以打印更精确的日志。
     ///
-    /// 约定的基因布局：
-    ///   genes[0..3]   -> 4 个 repeller 因子，范围 [0.01, 5.0]
-    ///   genes[4..403] -> 400 个逐点位移量，沿 -Y 方向，范围 [0, 100]
+    /// 使用方法（可选）：
+    ///   // 在 NSGAII.cs 的评估处（调用 Evaluate 之前）设置：
+    ///   NSGAEvalContext.Set(genIndex: gen + 1, individualIndex: k + 1);
+    ///   // 完成后可清理：
+    ///   NSGAEvalContext.Clear();
     ///
-    /// 目标方向（统一最小化）：
-    ///   f0 = 夏季光照小时（越小越好） -> 直接返回
-    ///   f1 = -冬季光照小时（冬季越多越好） -> 取负返回
+    /// 若不设置，本文件会回退到“评估自增编号”的日志，不影响运行。
+    /// </summary>
+    public static class NSGAEvalContext
+    {
+        private static readonly AsyncLocal<int?> _generation = new();
+        private static readonly AsyncLocal<int?> _individual = new();
+
+        public static void Set(int? genIndex, int? individualIndex)
+        {
+            _generation.Value = genIndex;
+            _individual.Value = individualIndex;
+        }
+
+        public static (int? gen, int? ind) Get() => (_generation.Value, _individual.Value);
+
+        public static void Clear()
+        {
+            _generation.Value = null;
+            _individual.Value = null;
+        }
+    }
+
+    /// <summary>
+    /// 将 GrowthSystem 与 LightingSimulator 串起来，提供 Evaluate(genes) 给 NSGA-II 使用。
     ///
-    /// 使用方式（示例）：
-    ///   var eval = NSGAWiring.MakeEvaluator(startingPoints, repellerPoints);
-    ///   cfg.Evaluate = eval;
+    /// 基因布局：
+    ///   genes[0..3]   → 4 个 repeller 因子，范围 [0.01, 5.0]
+    ///   genes[4..403] → 400 个逐点位移（沿 -Y 法向），范围 [0, 100]
+    ///
+    /// 目标（统一最小化）：
+    ///   f0 = 夏季光照小时（越小越好）
+    ///   f1 = -冬季光照小时（冬季越多越好 → 取负）
+    ///
+    /// 新增：评估计时与进度输出
+    ///   - 若未设置 NSGAEvalContext：打印 [评估 #K] 用时 XXX ms
+    ///   - 若已设置 NSGAEvalContext：打印 [第 G 代 | 个体 I] 用时 XXX ms
     /// </summary>
     public static class NSGAWiring
     {
-        // ======= GrowthSystem 默认参数（与你现有主程序一致） =======
+        // ======= GrowthSystem 默认参数 =======
         public static int    MaxPointCount = 200;
         public static int    MaxIterCount  = 200;
         public static double BaseDist      = 75.0;
 
         // ======= 几何参数 =======
-        /// <summary>沿 -Y 挤出的深度（如果将来想优化它，可把它纳入第 405 个基因）</summary>
-        public static float  ExtrudeDepth  = 100f;
+        public static float  ExtrudeDepth  = 100f; // 沿 -Y 挤出的深度
 
-        // ======= 光照模拟参数（可根据工程需要调整/外部设置） =======
+        // ======= 光照模拟参数 =======
         public static DateOnly SummerDate  = new DateOnly(2025, 6, 21);
         public static DateOnly WinterDate  = new DateOnly(2025, 12, 21);
         public static TimeOnly StartTime   = new TimeOnly(8, 0);
@@ -44,16 +76,20 @@ namespace CrvGrowth
         public static double RoomDepth     = 1000.0;
         public static double GridSize      = 10.0;
 
-        /// <summary>使用平均日照小时作为目标（true）；
-        /// 若想使用总日照小时，设为 false 并在 GetLightMetric 内切换。</summary>
-        public static bool   UseAverageLightHours = true;
+        /// <summary>
+        /// true：用平均日照小时作为目标；false：改为总日照（需你在 LightingSimulator 中实现 ComputeTotalLightHours）
+        /// </summary>
+        public static bool   UseAverageLightHours = false;
+
+        // 全局评估计数（用于无上下文时打印“评估 #”）
+        private static int _globalEvalCounter = 0;
 
         // =====================================================================
-        // 对外：两种工厂方法 —— 1) 直接传内存数据； 2) 从文件路径懒加载（需 IOHelper）
+        // 工厂方法：生成 Evaluate 回调
         // =====================================================================
 
         /// <summary>
-        /// 用内存中的起始点与 repeller 点，创建 Evaluate 回调。
+        /// 用内存点集创建 Evaluate，避免每次读盘。
         /// </summary>
         public static Func<double[], double[]> MakeEvaluator(
             List<Vector3> startingPoints,
@@ -64,19 +100,16 @@ namespace CrvGrowth
             if (repellerPoints == null)
                 throw new ArgumentException("repellerPoints 不能为空。");
 
-            // 用闭包把数据捕获起来，避免 Evaluate 内重复读盘
-            return (genes) => EvaluateOnce(genes, startingPoints, repellerPoints);
+            return (genes) => EvaluateOnceWithLogging(genes, startingPoints, repellerPoints);
         }
 
         /// <summary>
-        /// 从文件路径懒加载（需要项目中的 IOHelper.LoadPointsFromFile），
-        /// 适合你已有的数据放在 data/ 目录下的情况。
+        /// 从文件路径懒加载（首次 Evaluate 时加载并缓存）。
         /// </summary>
         public static Func<double[], double[]> MakeEvaluatorFromFiles(
             string startingCsvPath,
             string repellersCsvPath)
         {
-            // 首次调用时加载一次，后续复用缓存
             List<Vector3>? starting = null;
             List<Vector3>? repellers = null;
 
@@ -84,13 +117,44 @@ namespace CrvGrowth
             {
                 starting  ??= IOHelper.LoadPointsFromFile(startingCsvPath);
                 repellers ??= IOHelper.LoadPointsFromFile(repellersCsvPath);
-
-                return EvaluateOnce(genes, starting, repellers);
+                return EvaluateOnceWithLogging(genes, starting, repellers);
             };
         }
 
         // =====================================================================
-        // 内部：单次评估主流程（基因 -> 平面生长 -> verticalCrv -> 逐点 -Y 偏移 -> extrude -Y -> 夏/冬光照）
+        // 包裹一层：计时 + 控制台输出
+        // =====================================================================
+
+        private static double[] EvaluateOnceWithLogging(
+            double[] genes,
+            List<Vector3> startingPoints,
+            List<Vector3> repellerPoints)
+        {
+            var sw = Stopwatch.StartNew();
+
+            // 读取可选上下文（代数/个体编号），如果没有则回退到全局计数
+            var (gen, ind) = NSGAEvalContext.Get();
+            int evalId = Interlocked.Increment(ref _globalEvalCounter);
+
+            // 真正的一次评估
+            var result = EvaluateOnce(genes, startingPoints, repellerPoints);
+
+            sw.Stop();
+
+            if (gen.HasValue && ind.HasValue)
+            {
+                Console.WriteLine($"[第 {gen.Value} 代 | 个体 {ind.Value}] 用时 {sw.ElapsedMilliseconds} ms");
+            }
+            else
+            {
+                Console.WriteLine($"[评估 #{evalId}] 用时 {sw.ElapsedMilliseconds} ms");
+            }
+
+            return result;
+        }
+
+        // =====================================================================
+        // 单次评估主流程：基因 → 平面生长 → 转竖直 → 逐点 -Y 偏移 → 挤出 -Y → 夏/冬光照 → 目标
         // =====================================================================
 
         private static double[] EvaluateOnce(
@@ -99,7 +163,7 @@ namespace CrvGrowth
             List<Vector3> repellerPoints)
         {
             if (genes == null || genes.Length < 404)
-                throw new ArgumentException("基因长度不足（需要 404，含 4 个 repeller 因子 + 400 个逐点位移）。");
+                throw new ArgumentException("基因长度不足（需要 404：4 个 repeller 因子 + 400 个逐点位移）。");
 
             // 1) 基因拆分
             const int repellerCount = 4;
@@ -111,7 +175,7 @@ namespace CrvGrowth
             var offsets = new double[offsetCount];
             Array.Copy(genes, repellerCount, offsets, 0, offsetCount);
 
-            // 2) 平面生长（XY 平面，Z=0）
+            // 2) 平面生长（每次评估都重新计算）
             var growth = new GrowthSystem();
             var flatCurve = growth.Run(
                 starting:        startingPoints,
@@ -122,22 +186,20 @@ namespace CrvGrowth
                 baseDist:        BaseDist
             );
 
-            // 3) 转为竖直曲线：与你 Program.cs 保持一致 (x, y, 0) -> (x, 0, z=y)
+            // 3) 转垂直（与你 Program.cs 一致）：(x, y, 0) → (x, 0, z=y)
             var verticalCrv = ToVerticalXZ(flatCurve);
 
-            // 4) 逐点沿 -Y 应用偏移（前 N 个点；N = min(Count, 400)）
+            // 4) 逐点沿 -Y 偏移（只改前 N 个点）
             ApplyOffsetsMinusY(verticalCrv, offsets);
 
-            // 5) 沿 -Y 挤出得到 extruded 曲线
+            // 5) 沿 -Y 挤出得到 extruded
             var extrudedCrv = BuildExtrudedMinusY(verticalCrv, ExtrudeDepth);
 
-            // 6) 夏季光照
+            // 6) 夏 / 冬 光照模拟
             double summerMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, SummerDate);
-
-            // 7) 冬季光照
             double winterMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, WinterDate);
 
-            // 8) 统一最小化：{夏季，-冬季}
+            // 7) 统一最小化方向
             return new[] { summerMetric, -winterMetric };
         }
 
@@ -145,7 +207,7 @@ namespace CrvGrowth
         // 几何辅助
         // =====================================================================
 
-        /// <summary>将平面曲线 (x, y, 0) 映射为立面曲线 (x, 0, z=y)</summary>
+        /// <summary>(x, y, 0) → (x, 0, z=y)</summary>
         private static List<Vector3> ToVerticalXZ(List<Vector3> flat)
         {
             var vertical = new List<Vector3>(flat.Count);
@@ -202,25 +264,22 @@ namespace CrvGrowth
                 gridSize:      GridSize
             );
             sim.RunSimulation();
-
             return GetLightMetric(sim);
         }
 
-        /// <summary>根据 UseAverageLightHours 开关返回平均或总计</summary>
         private static double GetLightMetric(LightingSimulator sim)
         {
             if (UseAverageLightHours)
             {
-                // 需要在 LightingSimulator 中添加：
-                // public double ComputeAverageLightHours() { ... }
-                return sim.GetTotalLightHours();
+                // 需要在 LightingSimulator 中提供：
+                // public double ComputeAverageLightHours()
+                return sim.GetAverageLightHours();
             }
             else
             {
-                // 如果你更偏好总计，取消注释，并在 LightingSimulator 中添加：
-                // public int ComputeTotalLightHours() { ... }
+                // 如果你实现了总计：
                 // return sim.ComputeTotalLightHours();
-                // 这里默认也返回平均，避免编译错误：
+                // 默认仍返回平均，避免编译错误：
                 return sim.GetTotalLightHours();
             }
         }
