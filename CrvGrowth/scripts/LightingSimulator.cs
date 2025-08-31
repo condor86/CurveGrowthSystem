@@ -121,7 +121,7 @@ namespace CrvGrowth
                 // 若几乎切向（Z 分量过小）则跳过，避免数值不稳
                 if (Math.Abs(sunDir.Z) < 1e-8) continue;
                 
-                //Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向1：{sunDir}, 太阳角度方向2：{sunDir2}");
+                Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向：{sunDir}");
                 
                 
                 
