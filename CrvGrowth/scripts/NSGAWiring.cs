@@ -70,7 +70,7 @@ namespace CrvGrowth
         public static DateOnly WinterDate  = new DateOnly(2025, 12, 21);
         public static TimeOnly StartTime   = new TimeOnly(8, 0);
         public static TimeOnly EndTime     = new TimeOnly(16, 0);
-        public static TimeSpan Interval    = TimeSpan.FromHours(1);
+        public static TimeSpan Interval    = TimeSpan.FromHours(2);
 
         public static double RoomWidth     = 1000.0;
         public static double RoomDepth     = 1000.0;

@@ -3,6 +3,7 @@ using System.IO;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Numerics;
+using CrvGrowth.Solar; // 需要同项目中的 SolarNoaa.cs
 
 namespace CrvGrowth
 {
@@ -20,6 +21,21 @@ namespace CrvGrowth
         private readonly double _roomDepth;
         private readonly double _gridSize;
 
+        // —— 站点与坐标系（可配置）
+        private double _latitudeDeg  = 32.0603;   // 南京
+        private double _longitudeDeg = 118.7969;  // 南京
+        private double _tzOffsetHours = 8.0;      // UTC+8（不考虑夏令时）
+
+        private Vector3 _up    = new(0, 0, 1);    // Up=+Z
+        private Vector3 _north = new(0, 1, 0);    // 北向=+Y（南向外法线=-Y）
+
+        // —— 太阳计算选项
+        private bool _useApparentElevation = true; // true=视高度（含折射），false=几何高度
+        private double _minElevationDeg = 0.0;     // 小于该高度（含）时跳过（视作无直射）
+        
+        
+        
+        
         private Vector3[,] _gridCenters;
         private int _gridCols;
         private int _gridRows;
@@ -83,9 +99,32 @@ namespace CrvGrowth
             {
                 double hour = currentTime.Hour + currentTime.Minute / 60.0;
 
-                Vector3 sunDir = Vector3.Normalize(new Vector3(0, 1, -1)); // 或使用 GetSunDirection(hour)
+                //Vector3 sunDir = Vector3.Normalize(new Vector3(0, 1, -1)); // 或使用 GetSunDirection(hour)
+                
+                
+                
+                
+                var dtLocal = new DateTime(_date.Year, _date.Month, _date.Day, currentTime.Hour, currentTime.Minute, 0, DateTimeKind.Unspecified);
+                
+                var angles = SolarNoaa.Compute(
+                    dtLocal, _latitudeDeg, _longitudeDeg, _tzOffsetHours,
+                    applyRefraction: _useApparentElevation);
+                
+                // 低于阈值（含地平线）则跳过——无直射
+                double el = _useApparentElevation ? angles.ApparentElevationDeg : angles.GeometricElevationDeg;
+                if (el <= _minElevationDeg) continue;
 
-                //Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向：{sunDir}");
+                // 世界坐标下“指向太阳”的向量 → 投影用“从太阳指向地面”的方向
+                var toSun = SolarNoaa.DirectionToSun(el, angles.AzimuthDeg, _up, _north);
+                var sunDir = -toSun;
+
+                // 若几乎切向（Z 分量过小）则跳过，避免数值不稳
+                if (Math.Abs(sunDir.Z) < 1e-8) continue;
+                
+                //Console.WriteLine($"→ 当前时刻 {hour}, 太阳角度方向1：{sunDir}, 太阳角度方向2：{sunDir2}");
+                
+                
+                
 
                 bool[,] shadowGrid = new bool[_gridCols, _gridRows];
 
