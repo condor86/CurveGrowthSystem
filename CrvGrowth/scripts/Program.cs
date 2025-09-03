@@ -141,7 +141,7 @@ namespace CrvGrowth
             }
 
             // 5) 沿 -Y 挤出
-            var extrudedCrv = verticalCrv.Select(pt => new Vector3(pt.X, pt.Y - NSGAWiring.ExtrudeDepth, pt.Z)).ToList();
+            var extrudedCrv = verticalCrv;
 
             // 6) 导出竖直曲线（用于复盘/可视化）
             IOHelper.SavePointsToFile(outCrvCsv, verticalCrv);
