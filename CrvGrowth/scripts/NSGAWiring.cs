@@ -189,11 +189,14 @@ namespace CrvGrowth
             // 3) 转垂直（与你 Program.cs 一致）：(x, y, 0) → (x, 0, z=y)
             var verticalCrv = ToVerticalXZ(flatCurve);
 
-            // 4) 逐点沿 -Y 偏移（只改前 N 个点）
-            ApplyOffsetsMinusY(verticalCrv, offsets);
-
-            // 5) 得到 extruded
-            var extrudedCrv = verticalCrv;
+            // 4) 逐点沿 -Y 偏移（前 N 个点；N = min(count, 400)）
+            int N = Math.Min(verticalCrv.Count, offsets.Length);
+            var extrudedCrv = new List<Vector3>(verticalCrv); // 独立列表，避免 alias
+            for (int i = 0; i < N; i++)
+            {
+                var p = verticalCrv[i];
+                extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
+            }
 
             // 6) 夏 / 冬 光照模拟
             double summerMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, SummerDate);

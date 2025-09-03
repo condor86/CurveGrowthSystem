@@ -134,14 +134,15 @@ namespace CrvGrowth
 
             // 4) 逐点沿 -Y 偏移（前 N 个点；N = min(count, 400)）
             int N = Math.Min(verticalCrv.Count, offsets.Length);
+            var extrudedCrv = new List<Vector3>(verticalCrv); // 独立列表，避免 alias
             for (int i = 0; i < N; i++)
             {
                 var p = verticalCrv[i];
-                verticalCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
+                extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
             }
 
             // 5) 沿 -Y 挤出
-            var extrudedCrv = verticalCrv;
+            //var extrudedCrv = verticalCrv;
 
             // 6) 导出竖直曲线（用于复盘/可视化）
             IOHelper.SavePointsToFile(outCrvCsv, verticalCrv);
