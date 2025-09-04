@@ -66,7 +66,11 @@ namespace CrvGrowth
                 // 如需从文件懒加载（首轮读取，后续复用）：
                 // Evaluate = NSGAWiring.MakeEvaluatorFromFiles(startingCsv, repellerCsv)
             };
-
+            
+            
+            TestSingleMoment.Run("08:00");
+            
+            
             // === 运行 NSGA-II ===
             Console.WriteLine("NSGA-II optimization started...");
             var runWatch = Stopwatch.StartNew();
