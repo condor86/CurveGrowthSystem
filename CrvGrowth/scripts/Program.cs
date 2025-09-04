@@ -68,7 +68,7 @@ namespace CrvGrowth
             };
             
             
-            TestSingleMoment.Run("08:00");
+            TestSingleMoment.RunDefaultBatch();
             
             
             // === 运行 NSGA-II ===
