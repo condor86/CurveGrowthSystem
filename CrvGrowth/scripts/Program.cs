@@ -145,11 +145,8 @@ namespace CrvGrowth
                 extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
             }
 
-            // 5) 沿 -Y 挤出
-            //var extrudedCrv = verticalCrv;
-
             // 6) 导出竖直曲线（用于复盘/可视化）
-            IOHelper.SavePointsToFile(outCrvCsv, verticalCrv);
+            IOHelper.SavePointsToFile(outCrvCsv, extrudedCrv);
 
             // 7) 夏/冬分别跑一次并保存光照矩阵
             SimAndSave(verticalCrv, extrudedCrv, NSGAWiring.SummerDate, outLightingSummerCsv);

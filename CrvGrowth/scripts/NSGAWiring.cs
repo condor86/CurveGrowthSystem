@@ -272,19 +272,7 @@ namespace CrvGrowth
 
         private static double GetLightMetric(LightingSimulator sim)
         {
-            if (UseAverageLightHours)
-            {
-                // 需要在 LightingSimulator 中提供：
-                // public double ComputeAverageLightHours()
-                return sim.GetAverageLightHours();
-            }
-            else
-            {
-                // 如果你实现了总计：
-                // return sim.ComputeTotalLightHours();
-                // 默认仍返回平均，避免编译错误：
-                return sim.GetTotalLightHours();
-            }
+            return sim.GetTotalLightHours();
         }
     }
 }
