@@ -90,7 +90,7 @@ namespace CrvGrowth
             };
 
             // （可选）你的单步测试
-            TestSingleMoment.RunDefaultBatch();
+            //TestSingleMoment.RunDefaultBatch();
 
             // === 运行 NSGA-II ===
             Console.WriteLine("NSGA-II optimization started...");
