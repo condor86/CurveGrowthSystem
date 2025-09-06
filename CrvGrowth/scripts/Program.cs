@@ -5,13 +5,24 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using NSGAII;   // 需要你已经添加 NSGAII.cs
-using CrvGrowth; // 与当前命名空间一致
+
+using NSGAII;                // 需要 NSGAII.cs
+using CrvGrowth;             // 当前命名空间
+using CrvGrowth.Scripts;     // scripts/SunCache.cs 里的 SunVectors
 
 namespace CrvGrowth
 {
     class Program
     {
+        // —— 站点参数（与当前 LightingSimulator 默认一致：南京；如需更改请在此处改）——
+        private const double SiteLatitudeDeg   = 32.0603;
+        private const double SiteLongitudeDeg  = 118.7969;
+        private const double SiteTimezoneHours = 8.0;
+
+        // —— 模型坐标系：Up=+Z, North=+Y（如有模型相对真北的偏航，可在此处旋转 North）——
+        private static readonly Vector3 Up    = new(0, 0, 1);
+        private static readonly Vector3 North = new(0, 1, 0);
+
         static void Main(string[] args)
         {
             var totalWatch = Stopwatch.StartNew();
@@ -31,6 +42,17 @@ namespace CrvGrowth
             var startingPoints = IOHelper.LoadPointsFromFile(startingCsv);
             var repellerPoints = IOHelper.LoadPointsFromFile(repellerCsv);
 
+            // === 预计算太阳向量（一次）：夏/冬各一组，包含 [StartTime, EndTime] 的全部采样点 ===
+            var summerToSuns = SunVectors.Build(
+                NSGAWiring.SummerDate, NSGAWiring.StartTime, NSGAWiring.EndTime, NSGAWiring.Interval,
+                SiteLatitudeDeg, SiteLongitudeDeg, SiteTimezoneHours,
+                Up, North);
+
+            var winterToSuns = SunVectors.Build(
+                NSGAWiring.WinterDate, NSGAWiring.StartTime, NSGAWiring.EndTime, NSGAWiring.Interval,
+                SiteLatitudeDeg, SiteLongitudeDeg, SiteTimezoneHours,
+                Up, North);
+
             // === NSGA-II 基因边界（4 + 400 = 404）===
             const int repellerCount = 4;
             const int pointCount    = 400;
@@ -38,14 +60,14 @@ namespace CrvGrowth
 
             var lo = new double[geneLen];
             var hi = new double[geneLen];
-            for (int i = 0; i < repellerCount; i++) { lo[i] = 0.01; hi[i] = 5.0;   }   // 4 个 repeller 因子
-            for (int i = repellerCount; i < geneLen; i++) { lo[i] = 0.0;  hi[i] = 100.0; } // 400 个逐点位移（沿 -Y）
+            for (int i = 0; i < repellerCount; i++) { lo[i] = 0.01; hi[i] = 5.0; }
+            for (int i = repellerCount; i < geneLen; i++) { lo[i] = 0.0; hi[i] = 100.0; }
 
             // === NSGA-II 日志目录（每代 front0 / bestGenes.csv）===
             string nsgaLogDir = Path.Combine(resultDir, "nsga_logs");
             Directory.CreateDirectory(nsgaLogDir);
 
-            // === NSGA-II 配置===
+            // === NSGA-II 配置：Evaluate 使用“预计算向量”的重载 ===
             var cfg = new NSGAConfig
             {
                 PopulationSize = 50,
@@ -61,16 +83,15 @@ namespace CrvGrowth
                 SbxEta         = 20.0,
                 PolyMutationEta= 20.0,
 
-                // 使用 NSGAWiring 连接 GrowthSystem 与 LightingSimulator
-                Evaluate = NSGAWiring.MakeEvaluator(startingPoints, repellerPoints)
-                // 如需从文件懒加载（首轮读取，后续复用）：
-                // Evaluate = NSGAWiring.MakeEvaluatorFromFiles(startingCsv, repellerCsv)
+                // 关键：把夏/冬两组“指向太阳”的单位向量数组传给 NSGAWiring
+                Evaluate = NSGAWiring.MakeEvaluator(
+                    startingPoints, repellerPoints,
+                    summerToSuns, winterToSuns)
             };
-            
-            
+
+            // （可选）你的单步测试
             TestSingleMoment.RunDefaultBatch();
-            
-            
+
             // === 运行 NSGA-II ===
             Console.WriteLine("NSGA-II optimization started...");
             var runWatch = Stopwatch.StartNew();
@@ -88,32 +109,36 @@ namespace CrvGrowth
             var rep = pareto.OrderBy(ind => ind.Objectives.Sum()).First();
             Console.WriteLine("Exporting representative solution geometry & lighting...");
 
-            // === 导出代表解的几何与光照（夏/冬各一份）===
+            // === 导出代表解的几何与光照（同样使用“预计算向量”）===
             string outCrvCsv         = Path.Combine(resultDir, "resultsCrv.csv");
             string outLightingSummer = Path.Combine(resultDir, "resultsLighting_summer.csv");
             string outLightingWinter = Path.Combine(resultDir, "resultsLighting_winter.csv");
 
-                SaveSolutionGeometryAndLighting(
+            SaveSolutionGeometryAndLighting(
                 genes: rep.Genes,
                 startingPoints: startingPoints,
                 repellerPoints: repellerPoints,
                 outCrvCsv: outCrvCsv,
                 outLightingSummerCsv: outLightingSummer,
-                outLightingWinterCsv: outLightingWinter
+                outLightingWinterCsv: outLightingWinter,
+                summerToSuns: summerToSuns,
+                winterToSuns: winterToSuns
             );
 
             totalWatch.Stop();
             Console.WriteLine($"All done. Total time: {totalWatch.Elapsed}");
         }
 
-        /// 导出解的函数
+        /// 导出解：几何与光照（光照使用“向量直跑”，保持与优化一致）
         private static void SaveSolutionGeometryAndLighting(
             double[] genes,
             List<Vector3> startingPoints,
             List<Vector3> repellerPoints,
             string outCrvCsv,
             string outLightingSummerCsv,
-            string outLightingWinterCsv)
+            string outLightingWinterCsv,
+            Vector3[] summerToSuns,
+            Vector3[] winterToSuns)
         {
             const int repellerCount = 4;
             const int offsetCount   = 400;
@@ -145,28 +170,28 @@ namespace CrvGrowth
                 extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
             }
 
-            // 6) 导出竖直曲线（用于复盘/可视化）
+            // 5) 导出竖直曲线（用于复盘/可视化）
             IOHelper.SavePointsToFile(outCrvCsv, extrudedCrv);
 
-            // 7) 夏/冬分别跑一次并保存光照矩阵
-            SimAndSave(verticalCrv, extrudedCrv, NSGAWiring.SummerDate, outLightingSummerCsv);
-            SimAndSave(verticalCrv, extrudedCrv, NSGAWiring.WinterDate, outLightingWinterCsv);
+            // 6) 夏/冬分别用“向量直跑”并保存光照矩阵
+            SimAndSaveVectors(verticalCrv, extrudedCrv, summerToSuns, outLightingSummerCsv);
+            SimAndSaveVectors(verticalCrv, extrudedCrv, winterToSuns, outLightingWinterCsv);
 
             Console.WriteLine($"Saved: {outCrvCsv}");
             Console.WriteLine($"Saved: {outLightingSummerCsv}");
             Console.WriteLine($"Saved: {outLightingWinterCsv}");
         }
 
-        private static void SimAndSave(
+        private static void SimAndSaveVectors(
             List<Vector3> verticalCrv,
             List<Vector3> extrudedCrv,
-            DateOnly date,
+            Vector3[] toSuns,
             string outCsv)
         {
             var sim = new LightingSimulator(
                 verticalCurve: verticalCrv,
                 extrudedCurve: extrudedCrv,
-                date:          date,
+                date:          NSGAWiring.SummerDate,  // 占位，不再用于太阳角计算
                 startTime:     NSGAWiring.StartTime,
                 endTime:       NSGAWiring.EndTime,
                 interval:      NSGAWiring.Interval,
@@ -174,7 +199,9 @@ namespace CrvGrowth
                 roomDepth:     NSGAWiring.RoomDepth,
                 gridSize:      NSGAWiring.GridSize
             );
-            sim.RunSimulation();
+
+            // 需要你在 LightingSimulator 中新增 RunWithSunVectors(Vector3[] toSuns) 方法
+            sim.RunWithSunVectors(toSuns);
             sim.SaveLightHourGrid(outCsv);
         }
     }

@@ -51,9 +51,7 @@ namespace CrvGrowth
     ///   f0 = 夏季光照小时（越小越好）
     ///   f1 = -冬季光照小时（冬季越多越好 → 取负）
     ///
-    /// 新增：评估计时与进度输出
-    ///   - 若未设置 NSGAEvalContext：打印 [评估 #K] 用时 XXX ms
-    ///   - 若已设置 NSGAEvalContext：打印 [第 G 代 | 个体 I] 用时 XXX ms
+    /// 新增：可选“预计算太阳向量”通道，避免在热循环内重复天文计算
     /// </summary>
     public static class NSGAWiring
     {
@@ -77,7 +75,7 @@ namespace CrvGrowth
         public static double GridSize      = 10.0;
 
         /// <summary>
-        /// true：用平均日照小时作为目标；false：改为总日照（需你在 LightingSimulator 中实现 ComputeTotalLightHours）
+        /// true：用平均日照小时作为目标；false：改为总日照
         /// </summary>
         public static bool   UseAverageLightHours = false;
 
@@ -89,7 +87,7 @@ namespace CrvGrowth
         // =====================================================================
 
         /// <summary>
-        /// 用内存点集创建 Evaluate，避免每次读盘。
+        /// 用内存点集创建 Evaluate，避免每次读盘（原始 NOAA 路径）。
         /// </summary>
         public static Func<double[], double[]> MakeEvaluator(
             List<Vector3> startingPoints,
@@ -104,7 +102,7 @@ namespace CrvGrowth
         }
 
         /// <summary>
-        /// 从文件路径懒加载（首次 Evaluate 时加载并缓存）。
+        /// 从文件路径懒加载（首次 Evaluate 时加载并缓存）（原始 NOAA 路径）。
         /// </summary>
         public static Func<double[], double[]> MakeEvaluatorFromFiles(
             string startingCsvPath,
@@ -121,8 +119,28 @@ namespace CrvGrowth
             };
         }
 
+        /// <summary>
+        /// ✅ 新增重载：直接使用预计算好的太阳向量数组（夏/冬各一组），避免 Evaluate 内重复计算太阳位置。
+        /// </summary>
+        public static Func<double[], double[]> MakeEvaluator(
+            List<Vector3> startingPoints,
+            List<Vector3> repellerPoints,
+            Vector3[] summerToSuns,
+            Vector3[] winterToSuns)
+        {
+            if (startingPoints == null || startingPoints.Count == 0)
+                throw new ArgumentException("startingPoints 不能为空。");
+            if (repellerPoints == null)
+                throw new ArgumentException("repellerPoints 不能为空。");
+            if (summerToSuns == null || winterToSuns == null)
+                throw new ArgumentException("太阳向量数组不能为空。");
+
+            return (genes) => EvaluateOnceWithLogging_UsingVectors(
+                genes, startingPoints, repellerPoints, summerToSuns, winterToSuns);
+        }
+
         // =====================================================================
-        // 包裹一层：计时 + 控制台输出
+        // 包裹一层：计时 + 控制台输出（原始 NOAA 路径）
         // =====================================================================
 
         private static double[] EvaluateOnceWithLogging(
@@ -132,29 +150,52 @@ namespace CrvGrowth
         {
             var sw = Stopwatch.StartNew();
 
-            // 读取可选上下文（代数/个体编号），如果没有则回退到全局计数
             var (gen, ind) = NSGAEvalContext.Get();
             int evalId = Interlocked.Increment(ref _globalEvalCounter);
 
-            // 真正的一次评估
             var result = EvaluateOnce(genes, startingPoints, repellerPoints);
 
             sw.Stop();
 
             if (gen.HasValue && ind.HasValue)
-            {
                 Console.WriteLine($"[第 {gen.Value} 代 | 个体 {ind.Value}] 用时 {sw.ElapsedMilliseconds} ms");
-            }
             else
-            {
                 Console.WriteLine($"[评估 #{evalId}] 用时 {sw.ElapsedMilliseconds} ms");
-            }
 
             return result;
         }
 
         // =====================================================================
-        // 单次评估主流程：基因 → 平面生长 → 转竖直 → 逐点 -Y 偏移 → 挤出 -Y → 夏/冬光照 → 目标
+        // 包裹一层：计时 + 控制台输出（预计算向量路径）
+        // =====================================================================
+
+        private static double[] EvaluateOnceWithLogging_UsingVectors(
+            double[] genes,
+            List<Vector3> startingPoints,
+            List<Vector3> repellerPoints,
+            Vector3[] summerToSuns,
+            Vector3[] winterToSuns)
+        {
+            var sw = Stopwatch.StartNew();
+
+            var (gen, ind) = NSGAEvalContext.Get();
+            int evalId = Interlocked.Increment(ref _globalEvalCounter);
+
+            var result = EvaluateOnce_UsingVectors(
+                genes, startingPoints, repellerPoints, summerToSuns, winterToSuns);
+
+            sw.Stop();
+
+            if (gen.HasValue && ind.HasValue)
+                Console.WriteLine($"[第 {gen.Value} 代 | 个体 {ind.Value}] 用时 {sw.ElapsedMilliseconds} ms");
+            else
+                Console.WriteLine($"[评估 #{evalId}] 用时 {sw.ElapsedMilliseconds} ms");
+
+            return result;
+        }
+
+        // =====================================================================
+        // 单次评估主流程（原始 NOAA 路径）
         // =====================================================================
 
         private static double[] EvaluateOnce(
@@ -175,7 +216,7 @@ namespace CrvGrowth
             var offsets = new double[offsetCount];
             Array.Copy(genes, repellerCount, offsets, 0, offsetCount);
 
-            // 2) 平面生长（每次评估都重新计算）
+            // 2) 平面生长
             var growth = new GrowthSystem();
             var flatCurve = growth.Run(
                 starting:        startingPoints,
@@ -198,11 +239,62 @@ namespace CrvGrowth
                 extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
             }
 
-            // 6) 夏 / 冬 光照模拟
+            // 5) 夏 / 冬 光照模拟（NOAA 现算）
             double summerMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, SummerDate);
             double winterMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, WinterDate);
 
-            // 7) 统一最小化方向
+            // 6) 统一最小化方向
+            return new[] { summerMetric, -winterMetric };
+        }
+
+        // =====================================================================
+        // 单次评估主流程（预计算向量路径）
+        // =====================================================================
+
+        private static double[] EvaluateOnce_UsingVectors(
+            double[] genes,
+            List<Vector3> startingPoints,
+            List<Vector3> repellerPoints,
+            Vector3[] summerToSuns,
+            Vector3[] winterToSuns)
+        {
+            if (genes == null || genes.Length < 404)
+                throw new ArgumentException("基因长度不足（需要 404：4 + 400）。");
+
+            const int repellerCount = 4;
+            const int offsetCount   = 400;
+
+            var repellerFactors = new List<double>(repellerCount);
+            for (int i = 0; i < repellerCount; i++) repellerFactors.Add(genes[i]);
+
+            var offsets = new double[offsetCount];
+            Array.Copy(genes, repellerCount, offsets, 0, offsetCount);
+
+            // 生形
+            var growth = new GrowthSystem();
+            var flatCurve = growth.Run(
+                starting:        startingPoints,
+                repellers:       repellerPoints,
+                repellerFactors: repellerFactors,
+                maxPointCount:   MaxPointCount,
+                maxIterCount:    MaxIterCount,
+                baseDist:        BaseDist
+            );
+
+            // 转垂直 + 逐点 -Y 偏移
+            var verticalCrv = ToVerticalXZ(flatCurve);
+            var extrudedCrv = new List<Vector3>(verticalCrv);
+            int N = Math.Min(verticalCrv.Count, offsets.Length);
+            for (int i = 0; i < N; i++)
+            {
+                var p = verticalCrv[i];
+                extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
+            }
+
+            // 光照：直接用预计算的向量数组
+            double summerMetric = SimulateAndGetMetric_WithVectors(verticalCrv, extrudedCrv, summerToSuns);
+            double winterMetric = SimulateAndGetMetric_WithVectors(verticalCrv, extrudedCrv, winterToSuns);
+
             return new[] { summerMetric, -winterMetric };
         }
 
@@ -246,10 +338,9 @@ namespace CrvGrowth
         }
 
         // =====================================================================
-        // 光照辅助
+        // 光照辅助（原始 NOAA 路径）
         // =====================================================================
 
-        /// <summary>在给定日期下运行一次 LightingSimulator，并返回度量（平均或总计）</summary>
         private static double SimulateAndGetMetric(
             List<Vector3> verticalCrv,
             List<Vector3> extrudedCrv,
@@ -270,9 +361,34 @@ namespace CrvGrowth
             return GetLightMetric(sim);
         }
 
+        // =====================================================================
+        // 光照辅助（预计算向量路径）
+        // =====================================================================
+
+        private static double SimulateAndGetMetric_WithVectors(
+            List<Vector3> verticalCrv,
+            List<Vector3> extrudedCrv,
+            Vector3[] toSuns)
+        {
+            var sim = new LightingSimulator(
+                verticalCurve: verticalCrv,
+                extrudedCurve: extrudedCrv,
+                date:          SummerDate,  // 占位，不在该路径中使用
+                startTime:     StartTime,
+                endTime:       EndTime,
+                interval:      Interval,
+                roomWidth:     RoomWidth,
+                roomDepth:     RoomDepth,
+                gridSize:      GridSize
+            );
+            // 你需要在 LightingSimulator 中提供 RunWithSunVectors(Vector3[] toSuns)
+            sim.RunWithSunVectors(toSuns);
+            return GetLightMetric(sim);
+        }
+
         private static double GetLightMetric(LightingSimulator sim)
         {
-            return sim.GetTotalLightHours();
+            return UseAverageLightHours ? sim.GetAverageLightHours() : sim.GetTotalLightHours();
         }
     }
 }
