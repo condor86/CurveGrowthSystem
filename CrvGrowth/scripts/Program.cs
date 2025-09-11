@@ -71,7 +71,7 @@ namespace CrvGrowth
             var cfg = new NSGAConfig
             {
                 PopulationSize = 50,
-                Generations    = 1,
+                Generations    = 100,
                 CrossoverRate  = 0.9,
                 MutationRate   = 1.0 / geneLen,  // ≈ 1/n
                 GeneLength     = geneLen,
