@@ -71,7 +71,7 @@ namespace CrvGrowth
             var cfg = new NSGAConfig
             {
                 PopulationSize = 50,
-                Generations    = 100,
+                Generations    = 1,
                 CrossoverRate  = 0.9,
                 MutationRate   = 1.0 / geneLen,  // ≈ 1/n
                 GeneLength     = geneLen,
@@ -113,6 +113,8 @@ namespace CrvGrowth
             string outCrvCsv         = Path.Combine(resultDir, "resultsCrv.csv");
             string outLightingSummer = Path.Combine(resultDir, "resultsLighting_summer.csv");
             string outLightingWinter = Path.Combine(resultDir, "resultsLighting_winter.csv");
+            
+            string outNurbsCsv       = Path.Combine(resultDir, "resultsNurbs.csv");
 
             SaveSolutionGeometryAndLighting(
                 genes: rep.Genes,
@@ -121,6 +123,7 @@ namespace CrvGrowth
                 outCrvCsv: outCrvCsv,
                 outLightingSummerCsv: outLightingSummer,
                 outLightingWinterCsv: outLightingWinter,
+                outNurbsCsv: outNurbsCsv,
                 summerToSuns: summerToSuns,
                 winterToSuns: winterToSuns
             );
@@ -137,6 +140,7 @@ namespace CrvGrowth
             string outCrvCsv,
             string outLightingSummerCsv,
             string outLightingWinterCsv,
+            string outNurbsCsv,
             Vector3[] summerToSuns,
             Vector3[] winterToSuns)
         {
@@ -180,6 +184,17 @@ namespace CrvGrowth
             Console.WriteLine($"Saved: {outCrvCsv}");
             Console.WriteLine($"Saved: {outLightingSummerCsv}");
             Console.WriteLine($"Saved: {outLightingWinterCsv}");
+            
+            /*新增部分：构造NURBS曲线并导出*/
+            // 1) 构造“Rhino 控制点曲线”风格的 NURBS（Degree=3, 开区间, w=1）
+            var extrudedNurbsCurve = NurbsTools.BuildRhinoLikeCurve(extrudedCrv, degree: 3);
+
+            // 2) 按弧长等距采样（这里取 400 个点）
+            var ePts400 = NurbsTools.SampleByArcLength(extrudedNurbsCurve, count: 400);
+
+            // 3) 导出 CSV（x,y,z）
+            IOHelper.SavePointsToFile(outNurbsCsv, ePts400);
+            Console.WriteLine($"Saved: {outNurbsCsv}");
         }
 
         private static void SimAndSaveVectors(
