@@ -61,7 +61,7 @@ namespace CrvGrowth
             var lo = new double[geneLen];
             var hi = new double[geneLen];
             for (int i = 0; i < repellerCount; i++) { lo[i] = 0.01; hi[i] = 5.0; }
-            for (int i = repellerCount; i < geneLen; i++) { lo[i] = 0.0; hi[i] = 100.0; }
+            for (int i = repellerCount; i < geneLen; i++) { lo[i] = 50.0; hi[i] = 100.0; }
 
             // === NSGA-II 日志目录（每代 front0 / bestGenes.csv）===
             string nsgaLogDir = Path.Combine(resultDir, "nsga_logs");
