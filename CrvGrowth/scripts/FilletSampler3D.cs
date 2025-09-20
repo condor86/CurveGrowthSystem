@@ -1,15 +1,16 @@
-// File: CrvGrowth/Geometry/FilletSampler3D.cs
+// File: CrvGrowth/Scripts/FilletSampler3D.cs
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace CrvGrowth
+namespace CrvGrowth.Scripts
 {
     /// <summary>
-    /// 逐顶点 3D 圆角采样（局部平面 fillet）：
-    /// 输入：空间折线点集 + 目标半径；输出：仅包含“圆弧采样点 + 端点”的点列。
-    /// 直线段不额外采点，由相邻点自然连线。
-    /// 采样规则：1/4 圆≈5 点、1/2 圆≈9 点；所有圆弧至少 5 点，更大弧长按比例增密。
+    /// 逐顶点 3D 圆角采样（局部平面 fillet）。
+    /// - 半径 r 作为固定值（仅当放不下时被动缩小）。
+    /// - 张角越大，圆弧扫角越小（≈ π − θ），视觉不鼓包。
+    /// - 仅采圆弧点（含圆弧起点/终点=切点与中间点），直线段由相邻点自然直连。
+    /// - 采样：1/4 圆≈5 点，1/2 圆≈9 点，所有圆弧至少 5 点。
     /// </summary>
     public static class FilletSampler3D
     {
@@ -21,10 +22,12 @@ namespace CrvGrowth
         {
             if (poly == null || poly.Count < 2) throw new ArgumentException("poly needs >= 2 points");
             var pts = new List<Vector3>(poly);
+
             if (isClosed)
             {
-                // 已闭合的情况下去掉重复首尾
-                if (Vector3.Distance(pts[0], pts[^1]) < (float)eps) pts.RemoveAt(pts.Count - 1);
+                // 去掉重复首尾
+                if (Vector3.Distance(pts[0], pts[^1]) < (float)eps)
+                    pts.RemoveAt(pts.Count - 1);
             }
 
             int n = pts.Count;
@@ -36,7 +39,7 @@ namespace CrvGrowth
                     outPts.Add(p);
             }
 
-            // 开口折线：先推首点
+            // 开口折线：先压首点
             if (!isClosed) Push(pts[0]);
 
             int end = isClosed ? n : n - 1;
@@ -46,94 +49,82 @@ namespace CrvGrowth
                 int iCurr = i;
                 int iNext = isClosed ? (i + 1) % n : i + 1;
 
-                if (!isClosed && (iCurr == 0 || iCurr == n - 1))
-                    continue;
+                if (!isClosed && (iCurr == 0 || iCurr == n - 1)) continue;
                 if (iPrev < 0 || iNext >= n) continue;
 
                 Vector3 Pm1 = pts[iPrev];
                 Vector3 P   = pts[iCurr];
                 Vector3 Pp1 = pts[iNext];
 
-                Vector3 vIn  = Vector3.Normalize(P - Pm1);
-                Vector3 vOut = Vector3.Normalize(Pp1 - P);
+                Vector3 a = P - Pm1; float lenIn  = a.Length();
+                Vector3 b = Pp1 - P; float lenOut = b.Length();
+                if (lenIn < eps || lenOut < eps) { Push(P); continue; }
 
-                float lenIn  = Vector3.Distance(P, Pm1);
-                float lenOut = Vector3.Distance(Pp1, P);
+                a /= lenIn; // 进入边方向（Pm1→P）
+                b /= lenOut; // 离开边方向（P→Pp1）
 
-                if (lenIn < eps || lenOut < eps)
+                // 法向（用于确定局部平面与旋转方向）
+                Vector3 nrm = Vector3.Cross(a, b);
+                float nrmLen = nrm.Length();
+                if (nrmLen < eps)
                 {
-                    // 极短边：保留原角点，避免不稳定圆角
+                    // 共线或近共线：跳过圆角
                     Push(P);
                     continue;
                 }
+                nrm /= nrmLen;
 
-                Vector3 nrm = Vector3.Cross(vIn, vOut);
-                if (nrm.Length() < eps)
-                {
-                    // 近共线：跳过圆角
-                    Push(P);
-                    continue;
-                }
-                nrm = Vector3.Normalize(nrm);
+                // 以 v1 = -a（从 P 指向“进入边”内部），v2 = b（从 P 沿“离开边”）
+                Vector3 v1 = -a;
+                Vector3 v2 =  b;
 
-                // 在 P 处内角向量
-                Vector3 v1 = -vIn; // 指向进入边的反方向
-                Vector3 v2 =  vOut;
-
+                // 内角 α 与转角 θ
                 double dot = Math.Clamp(Vector3.Dot(v1, v2), -1.0f, 1.0f);
-                double alpha = Math.Acos(dot);
-                if (alpha < 1e-6 || Math.Abs(alpha - Math.PI) < 1e-6)
-                {
-                    Push(P);
-                    continue;
-                }
+                double alpha = Math.Acos(dot);      // 内角 ∈ [0, π]
+                double theta = Math.PI - alpha;     // 转角（标准 fillet 用它）
+                // θ→0：近直线；θ→π：回折，tan(θ/2)→∞，不做圆角
+                if (theta < 1e-6 || theta > Math.PI - 1e-6) { Push(P); continue; }
 
-                // 目标半径与修剪量
+                // 固定半径策略：r 取输入；若放不下再被动缩小
+                double tanHalf = Math.Tan(theta / 2.0);
+                if (tanHalf < 1e-12) { Push(P); continue; }
+
                 double r = Math.Max(radius, 0.0);
-                double t = r * Math.Tan(alpha / 2.0);
+                double t = r * tanHalf; // 每侧修剪量
 
-                // 半径收缩：保证修剪不超边长
-                double tMax = Math.Max(0.0, Math.Min(lenIn, lenOut) - 1e-6);
-                if (t > tMax)
+                double tLimit = Math.Max(0.0, Math.Min(lenIn, lenOut) - 1e-6);
+                if (t > tLimit)
                 {
-                    t = tMax;
-                    double tanHalf = Math.Tan(alpha / 2.0);
-                    if (tanHalf < 1e-12)
-                    {
-                        Push(P);
-                        continue;
-                    }
-                    r = t / tanHalf;
-                    if (r < 1e-9)
-                    {
-                        Push(P);
-                        continue;
-                    }
+                    t = tLimit;
+                    r = t / tanHalf;                 // 被动缩小半径（只在放不下时）
+                    if (r < 1e-9) { Push(P); continue; }
                 }
 
-                // 修剪点
-                Vector3 Qin  = P + (Vector3)(v1 * (float)t);
-                Vector3 Qout = P + (Vector3)(v2 * (float)t);
+                // 切点（弧端）—— 与两侧直线相切
+                Vector3 Qin  = P + v1 * (float)t;    // 进入边方向上退 t
+                Vector3 Qout = P + v2 * (float)t;    // 离开边方向上退 t
 
-                // 圆心：沿角平分线方向
-                double sinHalf = Math.Sin(alpha / 2.0);
-                if (sinHalf < 1e-12)
-                {
-                    Push(P);
-                    continue;
-                }
+                // 圆心：沿角平分线（v1+v2）方向，距离 d = r / sin(θ/2)
+                Vector3 bis = v1 + v2;
+                float bisLen = bis.Length();
+                if (bisLen < eps) { Push(P); continue; } // 数值防护
+                bis /= bisLen;
+
+                double sinHalf = Math.Sin(theta / 2.0);
+                if (sinHalf < 1e-12) { Push(P); continue; }
                 double d = r / sinHalf;
-                Vector3 bis = Vector3.Normalize(v1 + v2);
-                Vector3 C   = P + (Vector3)(bis * (float)d);
 
-                // 局部平面基
-                Vector3 e1 = Vector3.Normalize(Qin - C);
-                if (e1.Length() < eps)
-                {
-                    Push(P);
-                    continue;
-                }
-                Vector3 e2 = Vector3.Normalize(Vector3.Cross(nrm, e1));
+                Vector3 C = P + bis * (float)d;
+
+                // 局部正交基（右手系）：e1 指向 Qin 径向，e2 = e1 × nrm
+                Vector3 e1 = Qin - C; float e1Len = e1.Length();
+                if (e1Len < eps) { Push(P); continue; }
+                e1 /= e1Len;
+
+                Vector3 e2 = Vector3.Cross(e1, nrm);
+                float e2Len = e2.Length();
+                if (e2Len < eps) { Push(P); continue; }
+                e2 /= e2Len;
 
                 static double Atan2InBasis(Vector3 p, Vector3 center, Vector3 e1, Vector3 e2)
                 {
@@ -146,31 +137,56 @@ namespace CrvGrowth
                 double angStart = Atan2InBasis(Qin,  C, e1, e2);
                 double angEnd   = Atan2InBasis(Qout, C, e1, e2);
 
-                // 转向方向（与法向一致）
-                double turnSign = Math.Sign(Vector3.Dot(Vector3.Cross(v1, v2), nrm));
-                angEnd = NormalizeAngleToTarget(angStart, angEnd, -(int)turnSign);
-    
-                double sweep = Math.Abs(angEnd - angStart);
-                int sampleCount = ComputeSampleCount(sweep); // 至少 5 点
+                // 期望转向：从 v1 → v2 围绕 nrm 的符号
+                int dirSign = Math.Sign(Vector3.Dot(Vector3.Cross(v1, v2), nrm)); // +1 逆时针，-1 顺时针（右手系）
 
-                // 推入修剪点（避免重复）
+                angEnd = NormalizeAngleToTarget(angStart, angEnd, -dirSign);
+
+                // 计算实际扫角并尽量贴近 θ（必要时尝试±2π与反向修正）
+                double sweep = Math.Abs(angEnd - angStart);
+                double twoPi = Math.PI * 2.0;
+                double diff  = Math.Abs(sweep - theta);
+
+                // 尝试加减 2π 贴合 θ
+                double alt1 = Math.Abs(Math.Abs(angEnd + dirSign * twoPi - angStart) - theta);
+                if (alt1 + 1e-6 < diff)
+                {
+                    angEnd += dirSign * twoPi;
+                    sweep = Math.Abs(angEnd - angStart);
+                    diff  = Math.Abs(sweep - theta);
+                }
+                // 若仍相差较大，尝试翻转方向（极少见的数值分支）
+                if (diff > 1e-3)
+                {
+                    angEnd = NormalizeAngleToTarget(angStart, angEnd, -dirSign);
+                    sweep  = Math.Abs(angEnd - angStart);
+                    diff   = Math.Abs(sweep - theta);
+                }
+
+                // —— 采样输出 —— //
+                // 只采圆弧：先压切点 Qin，再压中间点，最后压“准确的 Qout”（保证端点切向）
                 Push(Qin);
 
-                // 中间与末端（包含 Qout）
-                for (int k = 1; k < sampleCount; k++)
+                int sampleCount = ComputeSampleCount(sweep); // ≥5
+                if (sampleCount > 2)
                 {
-                    double t01 = (double)k / (sampleCount - 1);
-                    double ang = Lerp(angStart, angEnd, t01);
-                    Vector3 onArc = C + (Vector3)((float)r * (Vector3)(e1 * (float)Math.Cos(ang) + e2 * (float)Math.Sin(ang)));
-                    Push(onArc);
+                    for (int k = 1; k < sampleCount - 1; k++)
+                    {
+                        double t01 = (double)k / (sampleCount - 1);
+                        double ang = Lerp(angStart, angEnd, t01);
+                        Vector3 onArc = C + (Vector3)((float)r * (e1 * (float)Math.Cos(ang) + e2 * (float)Math.Sin(ang)));
+                        Push(onArc);
+                    }
                 }
+
+                // 末端切点：用 Qout（而不是参数化计算的终点），确保数值上与离开边切向
+                Push(Qout);
             }
 
-            // 开口折线：推末点
+            // 开口折线：压尾点；闭合则闭合首尾
             if (!isClosed) Push(pts[^1]);
             else
             {
-                // 闭合：确保首尾重合
                 if (Vector3.Distance(outPts[0], outPts[^1]) > (float)eps)
                     outPts.Add(outPts[0]);
             }
@@ -180,9 +196,9 @@ namespace CrvGrowth
 
         private static int ComputeSampleCount(double sweep)
         {
-            // 目标：θ=π/2 -> 5 点；θ=π -> 9 点；更小弧段也至少 5 点
+            // θ=π/2 -> 5 点；θ=π -> 9 点；更小弧也至少 5 点
             double perQuarter = 4.0;
-            double baseCount = 1.0 + (sweep / (Math.PI / 2.0)) * perQuarter; // 线性外推
+            double baseCount = 1.0 + (sweep / (Math.PI / 2.0)) * perQuarter;
             int count = (int)Math.Round(baseCount, MidpointRounding.AwayFromZero);
             if (count < 5) count = 5;
             return count;
@@ -191,16 +207,17 @@ namespace CrvGrowth
         private static double NormalizeAngleToTarget(double a0, double a1, int dirSign)
         {
             double twoPi = Math.PI * 2.0;
+            // 规范到 (-π, π]
             double delta = a1 - a0;
             delta = delta - Math.Round(delta / twoPi) * twoPi;
 
             if (dirSign >= 0)
             {
-                if (delta < 0) delta += twoPi;  // 正向最短
+                if (delta < 0) delta += twoPi;   // 取正向最短
             }
             else
             {
-                if (delta > 0) delta -= twoPi;  // 反向最短
+                if (delta > 0) delta -= twoPi;   // 取反向最短
             }
             return a0 + delta;
         }
