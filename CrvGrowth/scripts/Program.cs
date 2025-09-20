@@ -71,7 +71,7 @@ namespace CrvGrowth
             var cfg = new NSGAConfig
             {
                 PopulationSize = 50,
-                Generations    = 100,
+                Generations    = 1,
                 CrossoverRate  = 0.9,
                 MutationRate   = 1.0 / geneLen,  // ≈ 1/n
                 GeneLength     = geneLen,
@@ -115,6 +115,7 @@ namespace CrvGrowth
             string outLightingWinter = Path.Combine(resultDir, "resultsLighting_winter.csv");
             
             string outNurbsCsv       = Path.Combine(resultDir, "resultsNurbs.csv");
+            string outFilletCsv      = Path.Combine(resultDir, "resultsFillet.csv");
 
             SaveSolutionGeometryAndLighting(
                 genes: rep.Genes,
@@ -124,6 +125,7 @@ namespace CrvGrowth
                 outLightingSummerCsv: outLightingSummer,
                 outLightingWinterCsv: outLightingWinter,
                 outNurbsCsv: outNurbsCsv,
+                outFilletCsv: outFilletCsv,
                 summerToSuns: summerToSuns,
                 winterToSuns: winterToSuns
             );
@@ -141,11 +143,13 @@ namespace CrvGrowth
             string outLightingSummerCsv,
             string outLightingWinterCsv,
             string outNurbsCsv,
+            string outFilletCsv,
             Vector3[] summerToSuns,
             Vector3[] winterToSuns)
         {
             const int repellerCount = 4;
             const int offsetCount   = 400;
+            const double filletRadiusDefault = 10.0; 
 
             // 1) 基因拆分
             var repellerFactors = genes.Take(repellerCount).ToList();
@@ -185,7 +189,8 @@ namespace CrvGrowth
             Console.WriteLine($"Saved: {outLightingSummerCsv}");
             Console.WriteLine($"Saved: {outLightingWinterCsv}");
             
-            /*新增部分：构造NURBS曲线并导出*/
+            /*
+            //构造NURBS曲线并导出
             // 1) 构造“Rhino 控制点曲线”风格的 NURBS（Degree=3, 开区间, w=1）
             var extrudedNurbsCurve = NurbsTools.BuildRhinoLikeCurve(extrudedCrv, degree: 3);
 
@@ -195,6 +200,18 @@ namespace CrvGrowth
             // 3) 导出 CSV（x,y,z）
             IOHelper.SavePointsToFile(outNurbsCsv, ePts400);
             Console.WriteLine($"Saved: {outNurbsCsv}");
+            */
+            
+            var filletSampled = FilletSampler3D.SampleFilletedPolyline(
+                poly: extrudedCrv,
+                radius: filletRadiusDefault,
+                isClosed: false
+            );
+
+            // 直接导出 fillet 采样点（包含圆弧起止点与中间点；直线段自然由相邻点连线）
+            IOHelper.SavePointsToFile(outFilletCsv, filletSampled);
+            Console.WriteLine($"Saved (fillet points): {outFilletCsv}");
+
         }
 
         private static void SimAndSaveVectors(
