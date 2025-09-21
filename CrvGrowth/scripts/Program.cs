@@ -149,7 +149,7 @@ namespace CrvGrowth
         {
             const int repellerCount = 4;
             const int offsetCount   = 400;
-            const double filletRadiusDefault = 10.0; 
+            const float filletRadiusDefault = 10f; 
 
             // 1) 基因拆分
             var repellerFactors = genes.Take(repellerCount).ToList();
@@ -202,11 +202,13 @@ namespace CrvGrowth
             Console.WriteLine($"Saved: {outNurbsCsv}");
             */
             
-            var filletSampled = FilletSampler3D.SampleFilletedPolyline(
-                poly: extrudedCrv,
+            var filletSampled = FilletUtil.FilletPolylineWithFixedArcPoints(
+                pts: extrudedCrv,
                 radius: filletRadiusDefault,
-                isClosed: false
-            );
+                arcPointCount: 9,      // 您的固定 9 点要求
+                angleEpsDeg: 1.0f,
+                isClosed: false,        // extrudedcrv 通常开口；若需要闭合可置 true
+                clampRadius: true);
 
             // 直接导出 fillet 采样点（包含圆弧起止点与中间点；直线段自然由相邻点连线）
             IOHelper.SavePointsToFile(outFilletCsv, filletSampled);
