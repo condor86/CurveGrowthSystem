@@ -3,9 +3,40 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace CrvGrowth
 {
+    internal static class TopologyHelpers
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PrevIndex(int i, int n, bool closed)
+            => closed ? (i - 1 + n) % n : Math.Max(i - 1, 0);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int NextIndex(int i, int n, bool closed)
+            => closed ? (i + 1) % n : Math.Min(i + 1, n - 1);
+
+        /// <summary>
+        /// 段枚举：当 closed==true 时返回 n 段（含 last→0），否则返回 n-1 段（0→1, ..., n-2→n-1）。
+        /// </summary>
+        public static IEnumerable<(int a, int b)> EnumerateSegments(int n, bool closed)
+        {
+            if (n < 2) yield break;
+
+            if (closed)
+            {
+                for (int i = 0; i < n; i++)
+                    yield return (i, (i + 1) % n);
+            }
+            else
+            {
+                for (int i = 0; i < n - 1; i++)
+                    yield return (i, i + 1);
+            }
+        }
+    }
+
     public class GrowthSystem
     {
         private readonly double _tileWidth = 1000.0;
@@ -19,10 +50,12 @@ namespace CrvGrowth
             List<double> repellerFactors,
             int maxPointCount = 200,
             int maxIterCount = 200,
-            double baseDist = 75.0)
+            double baseDist = 75.0,
+            bool isClosed = true) // 新增：闭合拓扑开关（默认开启）
         {
             var centers = new List<Vector3>(starting);
 
+            // 若希望闭合且起始点数过少，建议上游保障 >= 3；此处不强制改动以保持兼容
             for (int iter = 0; iter < maxIterCount; iter++)
             {
                 if (centers.Count >= maxPointCount)
@@ -55,7 +88,7 @@ namespace CrvGrowth
                         }
                     }
                 }
-                
+
                 var tree = new KDTree<double, int>(
                     2,
                     kdPoints.ToArray(),
@@ -68,7 +101,7 @@ namespace CrvGrowth
                     }
                 );
 
-                // ========== 斥力计算 ==========
+                // ========== 斥力计算（保持与原逻辑一致） ==========
                 for (int i = 0; i < centers.Count; i++)
                 {
                     double maxSearchRadius = baseDist * _maxFactor;
@@ -79,7 +112,7 @@ namespace CrvGrowth
                     foreach (var (point, idx) in neighbors)
                     {
                         int j = originalIndices[idx];
-                        if (j == i) continue;
+                        if (j == i) continue; // 不与自身的镜像作用
 
                         var mirrorJ = mirroredPoints[idx];
                         var delta = centers[i] - mirrorJ;
@@ -103,36 +136,43 @@ namespace CrvGrowth
                         collisionCounts[j] += 1.0;
                     }
                 }
-                
+
                 for (int i = 0; i < centers.Count; i++)
                 {
                     if (collisionCounts[i] > 0.0)
                         centers[i] += totalMoves[i] / (float)collisionCounts[i];
                 }
 
-                // ========== 插值生长 ==========
+                // ========== 插值生长（覆盖首尾段，按降序批量插入） ==========
                 if (centers.Count < maxPointCount)
                 {
-                    var splitIndices = new List<int>();
+                    int n = centers.Count;
+                    var toInsert = new List<(int insertAt, Vector3 pt)>();
 
-                    for (int i = 0; i < centers.Count - 1; i++)
+                    foreach (var (a, b) in TopologyHelpers.EnumerateSegments(n, isClosed))
                     {
-                        double factorA = EvaluateDensityFactor(centers[i], repellers, repellerFactors);
-                        double factorB = EvaluateDensityFactor(centers[i + 1], repellers, repellerFactors);
+                        double factorA = EvaluateDensityFactor(centers[a], repellers, repellerFactors);
+                        double factorB = EvaluateDensityFactor(centers[b], repellers, repellerFactors);
                         double insertThreshold = baseDist * 0.5 * (factorA + factorB) - 1.0;
 
-                        if (Vector3.Distance(centers[i], centers[i + 1]) > insertThreshold)
-                            splitIndices.Add(i + 1 + splitIndices.Count);
+                        if (Vector3.Distance(centers[a], centers[b]) > insertThreshold)
+                        {
+                            var mid = 0.5f * (centers[a] + centers[b]);
+                            // 约定将新点插在段 (a→b) 的 b 索引处
+                            toInsert.Add((b, mid));
+                        }
                     }
 
-                    foreach (int splitIndex in splitIndices)
+                    if (toInsert.Count > 0)
                     {
-                        var a = centers[splitIndex - 1];
-                        var b = centers[splitIndex];
-                        var newCenter = 0.5f * (a + b);
-                        centers.Insert(splitIndex, newCenter);
+                        // 关键：按索引降序插入，避免因插入导致后续索引位移
+                        toInsert.Sort((x, y) => y.insertAt.CompareTo(x.insertAt));
 
-                        if (centers.Count >= maxPointCount) break;
+                        foreach (var (insertAt, pt) in toInsert)
+                        {
+                            if (centers.Count >= maxPointCount) break;
+                            centers.Insert(insertAt, pt);
+                        }
                     }
                 }
             }
