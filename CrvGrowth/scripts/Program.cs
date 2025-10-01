@@ -207,7 +207,7 @@ namespace CrvGrowth
                 radius: filletRadiusDefault,
                 arcPointCount: 9,      // 您的固定 9 点要求
                 angleEpsDeg: 1.0f,
-                isClosed: false,        // extrudedcrv 通常开口；若需要闭合可置 true
+                isClosed: true,        // extrudedcrv 通常开口；若需要闭合可置 true
                 clampRadius: true);
 
             // 直接导出 fillet 采样点（包含圆弧起止点与中间点；直线段自然由相邻点连线）

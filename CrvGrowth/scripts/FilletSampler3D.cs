@@ -7,7 +7,10 @@ namespace CrvGrowth
     public static class FilletUtil
     {
         /// <summary>
-        /// 原版：逐拐点圆角化，按每 90° 的采样密度采样弧；开口保留整体首尾点；闭合则几何闭合。
+        /// 逐拐点圆角化：
+        /// - isClosed=false：视为开口折线，保留首尾原点，仅处理中间拐点；
+        /// - isClosed=true：把所有点都当作拐点参与圆角，但不做首尾补点的几何闭合（不追加 result[0]）。
+        /// 采样方式：按每 90° 的采样密度采样弧。
         /// </summary>
         public static List<Vector3> FilletPolyline(
             IReadOnlyList<Vector3> pts,
@@ -23,7 +26,7 @@ namespace CrvGrowth
             int n = pts.Count;
             bool treatClosed = isClosed && n >= 3;
 
-            if (!treatClosed) result.Add(pts[0]);
+            if (!treatClosed) result.Add(pts[0]); // closed: 不预先加入首点
 
             int start = treatClosed ? 0 : 1;
             int end   = treatClosed ? n - 1 : n - 2;
@@ -43,7 +46,8 @@ namespace CrvGrowth
                         radius, Deg2Rad(angleEpsDeg), clampRadius,
                         out var t1, out var t2, out var center, out double arcAngle, out var nrm))
                 {
-                    if (!treatClosed || (treatClosed && i != 0))
+                    // 统一回退策略：失败则保留当前拐点
+                    if (result.Count == 0 || !NearlyEqual(result[^1], pCurr))
                         result.Add(pCurr);
                     continue;
                 }
@@ -52,8 +56,10 @@ namespace CrvGrowth
                     result.Add(t1);
 
                 foreach (var q in SampleArc(t1, t2, center, nrm, arcAngle, arcSamplesPer90Deg))
+                {
                     if (result.Count == 0 || !NearlyEqual(result[^1], q))
                         result.Add(q);
+                }
             }
 
             if (!treatClosed)
@@ -61,17 +67,15 @@ namespace CrvGrowth
                 if (result.Count == 0 || !NearlyEqual(result[^1], pts[^1]))
                     result.Add(pts[^1]);
             }
-            else
-            {
-                if (result.Count > 0 && !NearlyEqual(result[0], result[^1]))
-                    result.Add(result[0]);
-            }
+            // closed: 不进行任何首尾闭合的补点操作
 
             return result;
         }
 
         /// <summary>
-        /// 加强版：每个圆角用固定点数（默认 9，含 T1/T2）替代原中间拐点；开口保留整体首尾点；闭合则几何闭合。
+        /// 加强版：每个圆角用固定点数（默认 9，含 T1/T2）替代原中间拐点；
+        /// - isClosed=false：视为开口折线，保留首尾原点；
+        /// - isClosed=true：把所有点当作拐点参与圆角，但不做首尾补点的几何闭合。
         /// </summary>
         public static List<Vector3> FilletPolylineWithFixedArcPoints(
             IReadOnlyList<Vector3> pts,
@@ -87,7 +91,7 @@ namespace CrvGrowth
             int n = pts.Count;
             bool treatClosed = isClosed && n >= 3;
 
-            if (!treatClosed) result.Add(pts[0]);
+            if (!treatClosed) result.Add(pts[0]); // closed: 不预先加入首点
 
             int start = treatClosed ? 0 : 1;
             int end   = treatClosed ? n - 1 : n - 2;
@@ -107,11 +111,9 @@ namespace CrvGrowth
                         radius, Deg2Rad(angleEpsDeg), clampRadius,
                         out var t1, out var t2, out var center, out double _, out var nrm))
                 {
-                    if (!treatClosed || (treatClosed && i != 0))
-                    {
-                        if (result.Count == 0 || !NearlyEqual(result[^1], pCurr))
-                            result.Add(pCurr);
-                    }
+                    // 统一回退策略：失败则保留当前拐点
+                    if (result.Count == 0 || !NearlyEqual(result[^1], pCurr))
+                        result.Add(pCurr);
                     continue;
                 }
 
@@ -130,11 +132,7 @@ namespace CrvGrowth
                 if (result.Count == 0 || !NearlyEqual(result[^1], pts[^1]))
                     result.Add(pts[^1]);
             }
-            else
-            {
-                if (result.Count > 0 && !NearlyEqual(result[0], result[^1]))
-                    result.Add(result[0]);
-            }
+            // closed: 不进行任何首尾闭合的补点操作
 
             return result;
         }

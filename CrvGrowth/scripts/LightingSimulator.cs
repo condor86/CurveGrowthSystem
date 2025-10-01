@@ -21,6 +21,8 @@ namespace CrvGrowth
         private readonly double _roomDepth;
         private readonly double _gridSize;
 
+        private readonly bool _isClosed;  // 新增：是否按闭合曲线处理（默认 true）
+
         // —— 站点与坐标系（用于 NOAA 回退路径）——
         private double _latitudeDeg   = 32.0603;   // 南京
         private double _longitudeDeg  = 118.7969;  // 南京
@@ -48,7 +50,8 @@ namespace CrvGrowth
             TimeSpan interval,
             double roomWidth,
             double roomDepth,
-            double gridSize)
+            double gridSize,
+            bool isClosed = true) // 新增参数：是否闭合（默认 true）
         {
             if (verticalCurve.Count != extrudedCurve.Count)
                 throw new ArgumentException("verticalCurve 和 extrudedCurve 的点数必须相同");
@@ -64,6 +67,8 @@ namespace CrvGrowth
             _roomWidth = roomWidth;
             _roomDepth = roomDepth;
             _gridSize  = gridSize;
+
+            _isClosed = isClosed;
 
             InitializeGrid();
         }
@@ -105,7 +110,7 @@ namespace CrvGrowth
         }
 
         /// <summary>
-        /// 回退路径：保持你原本的 NOAA 按时刻计算（导出或对比时可用）
+        /// 回退路径：保持原本的 NOAA 按时刻计算（导出或对比时可用）
         /// </summary>
         public void RunSimulation()
         {
@@ -137,7 +142,11 @@ namespace CrvGrowth
 
             bool[,] shadowGrid = new bool[_gridCols, _gridRows];
 
-            for (int i = 0; i < _verticalCurve.Count - 1; i++)
+            int n = _verticalCurve.Count;
+            if (n < 2) return;
+
+            // —— 开放/闭合的“主循环段” ——（开放时：0..n-2；闭合时同样先覆盖 0..n-2）
+            for (int i = 0; i < n - 1; i++)
             {
                 var v0 = _verticalCurve[i];
                 var v1 = _verticalCurve[i + 1];
@@ -149,32 +158,56 @@ namespace CrvGrowth
                 var p2 = ProjectOntoXY(b1, sunDir);
                 var p3 = ProjectOntoXY(b0, sunDir);
 
-                float minX = MathF.Min(MathF.Min(p0.X, p1.X), MathF.Min(p2.X, p3.X));
-                float maxX = MathF.Max(MathF.Max(p0.X, p1.X), MathF.Max(p2.X, p3.X));
-                float minY = MathF.Min(MathF.Min(p0.Y, p1.Y), MathF.Min(p2.Y, p3.Y));
-                float maxY = MathF.Max(MathF.Max(p0.Y, p1.Y), MathF.Max(p2.Y, p3.Y));
-
-                int minCol = Math.Max(0, (int)Math.Floor(minX / _gridSize));
-                int maxCol = Math.Min(_gridCols - 1, (int)Math.Ceiling(maxX / _gridSize));
-                int minRow = Math.Max(0, (int)Math.Floor(minY / _gridSize));
-                int maxRow = Math.Min(_gridRows - 1, (int)Math.Ceiling(maxY / _gridSize));
-
-                for (int x = minCol; x <= maxCol; x++)
-                {
-                    for (int y = minRow; y <= maxRow; y++)
-                    {
-                        if (PointInQuad(_gridCenters[x, y], p0, p1, p2, p3))
-                            shadowGrid[x, y] = true;
-                    }
-                }
+                RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
             }
 
+            // —— 闭合补段：末尾 → 开头 ——（新增）
+            if (_isClosed && n >= 2)
+            {
+                int last = n - 1;
+                var v0 = _verticalCurve[last];
+                var v1 = _verticalCurve[0];
+                var b1 = _extrudedCurve[0];
+                var b0 = _extrudedCurve[last];
+
+                var p0 = ProjectOntoXY(v0, sunDir);
+                var p1 = ProjectOntoXY(v1, sunDir);
+                var p2 = ProjectOntoXY(b1, sunDir);
+                var p3 = ProjectOntoXY(b0, sunDir);
+
+                RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
+            }
+
+            // —— 将未被遮挡的格点累计“光照次数” ——（每个样本步 +1）
             for (int x = 0; x < _gridCols; x++)
             {
                 for (int y = 0; y < _gridRows; y++)
                 {
                     if (!shadowGrid[x, y])
-                        _lightHourGrid[x, y] += 1; // 每个样本步累加 1（含起止，共样本数步）
+                        _lightHourGrid[x, y] += 1;
+                }
+            }
+        }
+
+        private void RasterizeQuadToShadowGrid(
+            Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, ref bool[,] shadowGrid)
+        {
+            float minX = MathF.Min(MathF.Min(p0.X, p1.X), MathF.Min(p2.X, p3.X));
+            float maxX = MathF.Max(MathF.Max(p0.X, p1.X), MathF.Max(p2.X, p3.X));
+            float minY = MathF.Min(MathF.Min(p0.Y, p1.Y), MathF.Min(p2.Y, p3.Y));
+            float maxY = MathF.Max(MathF.Max(p0.Y, p1.Y), MathF.Max(p2.Y, p3.Y));
+
+            int minCol = Math.Max(0, (int)Math.Floor(minX / _gridSize));
+            int maxCol = Math.Min(_gridCols - 1, (int)Math.Ceiling(maxX / _gridSize));
+            int minRow = Math.Max(0, (int)Math.Floor(minY / _gridSize));
+            int maxRow = Math.Min(_gridRows - 1, (int)Math.Ceiling(maxY / _gridSize));
+
+            for (int x = minCol; x <= maxCol; x++)
+            {
+                for (int y = minRow; y <= maxRow; y++)
+                {
+                    if (PointInQuad(_gridCenters[x, y], p0, p1, p2, p3))
+                        shadowGrid[x, y] = true;
                 }
             }
         }
@@ -217,7 +250,7 @@ namespace CrvGrowth
                    SameSide(p, a, c, d) &&
                    SameSide(p, b, d, a);
         }
-        
+
         public double GetTotalLightHours()
         {
             double total = 0;
@@ -232,6 +265,5 @@ namespace CrvGrowth
             double total = GetTotalLightHours();
             return total / (_gridCols * _gridRows);
         }
-        
     }
 }
