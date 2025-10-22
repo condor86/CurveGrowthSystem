@@ -21,7 +21,7 @@ namespace CrvGrowth
         private readonly double _roomDepth;
         private readonly double _gridSize;
 
-        private readonly bool _isClosed;  // 新增：是否按闭合曲线处理（默认 true）
+        private readonly bool _isClosed;  // 是否按闭合曲线处理（默认 true）
 
         // —— 站点与坐标系（用于 NOAA 回退路径）——
         private double _latitudeDeg   = 32.0603;   // 南京
@@ -41,6 +41,9 @@ namespace CrvGrowth
 
         private int[,] _lightHourGrid;
 
+        // 复用的遮挡网格，避免每步分配
+        private bool[,] _shadowGridBuffer;
+
         public LightingSimulator(
             List<Vector3> verticalCurve,
             List<Vector3> extrudedCurve,
@@ -51,7 +54,7 @@ namespace CrvGrowth
             double roomWidth,
             double roomDepth,
             double gridSize,
-            bool isClosed = true) // 新增参数：是否闭合（默认 true）
+            bool isClosed = true)
         {
             if (verticalCurve.Count != extrudedCurve.Count)
                 throw new ArgumentException("verticalCurve 和 extrudedCurve 的点数必须相同");
@@ -77,8 +80,9 @@ namespace CrvGrowth
         {
             _gridCols = (int)Math.Ceiling(_roomWidth / _gridSize);
             _gridRows = (int)Math.Ceiling(_roomDepth / _gridSize);
-            _gridCenters   = new Vector3[_gridCols, _gridRows];
-            _lightHourGrid = new int[_gridCols, _gridRows];
+            _gridCenters      = new Vector3[_gridCols, _gridRows];
+            _lightHourGrid    = new int[_gridCols, _gridRows];
+            _shadowGridBuffer = new bool[_gridCols, _gridRows];
 
             for (int x = 0; x < _gridCols; x++)
             {
@@ -140,7 +144,8 @@ namespace CrvGrowth
             var sunDir = -Vector3.Normalize(toSun); // 从太阳指向地面
             if (Math.Abs(sunDir.Z) < 1e-8) return;  // 近切向，数值不稳则跳过
 
-            bool[,] shadowGrid = new bool[_gridCols, _gridRows];
+            var shadowGrid = _shadowGridBuffer;
+            ClearShadowGrid(shadowGrid);
 
             int n = _verticalCurve.Count;
             if (n < 2) return;
@@ -158,10 +163,11 @@ namespace CrvGrowth
                 var p2 = ProjectOntoXY(b1, sunDir);
                 var p3 = ProjectOntoXY(b0, sunDir);
 
-                RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
+                // 原位 + 左右各一份（±_gridSize）一起涂色
+                RasterizeQuadToShadowGridWithSideCopies(p0, p1, p2, p3, ref shadowGrid);
             }
 
-            // —— 闭合补段：末尾 → 开头 ——（新增）
+            // —— 闭合补段：末尾 → 开头 ——（如 _isClosed）
             if (_isClosed && n >= 2)
             {
                 int last = n - 1;
@@ -175,7 +181,7 @@ namespace CrvGrowth
                 var p2 = ProjectOntoXY(b1, sunDir);
                 var p3 = ProjectOntoXY(b0, sunDir);
 
-                RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
+                RasterizeQuadToShadowGridWithSideCopies(p0, p1, p2, p3, ref shadowGrid);
             }
 
             // —— 将未被遮挡的格点累计“光照次数” ——（每个样本步 +1）
@@ -189,6 +195,35 @@ namespace CrvGrowth
             }
         }
 
+        // ====== 栅格化（含左右镜像复制） ======
+
+        // 平移 XY（保持 Z 不变）
+        private static Vector3 OffsetXY(in Vector3 p, float dx, float dy)
+        {
+            return new Vector3(p.X + dx, p.Y + dy, p.Z);
+        }
+
+        // 原四边形 + 左右各一份（沿世界坐标 X 方向，距离 = _gridSize）
+        private void RasterizeQuadToShadowGridWithSideCopies(
+            Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, ref bool[,] shadowGrid)
+        {
+            // 原位置
+            RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
+
+            // 左/右复制（±_gridSize）
+            float s = (float)_gridSize;
+
+            RasterizeQuadToShadowGrid(
+                OffsetXY(p0, -s, 0), OffsetXY(p1, -s, 0),
+                OffsetXY(p2, -s, 0), OffsetXY(p3, -s, 0),
+                ref shadowGrid);
+
+            RasterizeQuadToShadowGrid(
+                OffsetXY(p0,  s, 0), OffsetXY(p1,  s, 0),
+                OffsetXY(p2,  s, 0), OffsetXY(p3,  s, 0),
+                ref shadowGrid);
+        }
+
         private void RasterizeQuadToShadowGrid(
             Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, ref bool[,] shadowGrid)
         {
@@ -197,10 +232,20 @@ namespace CrvGrowth
             float minY = MathF.Min(MathF.Min(p0.Y, p1.Y), MathF.Min(p2.Y, p3.Y));
             float maxY = MathF.Max(MathF.Max(p0.Y, p1.Y), MathF.Max(p2.Y, p3.Y));
 
-            int minCol = Math.Max(0, (int)Math.Floor(minX / _gridSize));
-            int maxCol = Math.Min(_gridCols - 1, (int)Math.Ceiling(maxX / _gridSize));
-            int minRow = Math.Max(0, (int)Math.Floor(minY / _gridSize));
-            int maxRow = Math.Min(_gridRows - 1, (int)Math.Ceiling(maxY / _gridSize));
+            int minCol = Math.Max(0, (int)Math.Floor((double)minX / _gridSize));
+            int minRow = Math.Max(0, (int)Math.Floor((double)minY / _gridSize));
+
+            // 半开区间上界（避免把恰好在右/上边界之外的列/行算入）
+            int maxCol = Math.Min(_gridCols - 1, (int)Math.Floor(((double)maxX - 1e-7) / _gridSize));
+            int maxRow = Math.Min(_gridRows - 1, (int)Math.Floor(((double)maxY - 1e-7) / _gridSize));
+
+            if (maxCol < 0 || maxRow < 0 || minCol > _gridCols - 1 || minRow > _gridRows - 1)
+                return; // 完全越界
+
+            minCol = Math.Max(0, minCol);
+            minRow = Math.Max(0, minRow);
+            maxCol = Math.Min(_gridCols - 1, maxCol);
+            maxRow = Math.Min(_gridRows - 1, maxRow);
 
             for (int x = minCol; x <= maxCol; x++)
             {
@@ -211,6 +256,49 @@ namespace CrvGrowth
                 }
             }
         }
+
+        // ====== 点测：四边形 → 三角分解，更稳健 ======
+
+        private bool PointInQuad(Vector3 p, Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            // 将四边形 a-b-c-d 拆为两个三角形：a-b-c 与 a-c-d
+            return PointInTri(p, a, b, c) || PointInTri(p, a, c, d);
+        }
+
+        private bool PointInTri(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+        {
+            // 基于叉积符号一致性（允许共线视为在内）
+            static float Cross(Vector3 u, Vector3 v) => u.X * v.Y - u.Y * v.X;
+
+            var ab = b - a; var ap = p - a;
+            var bc = c - b; var bp = p - b;
+            var ca = a - c; var cp = p - c;
+
+            float c1 = Cross(ab, ap);
+            float c2 = Cross(bc, bp);
+            float c3 = Cross(ca, cp);
+
+            const float eps = 1e-6f;
+            bool nonNeg = (c1 >= -eps) && (c2 >= -eps) && (c3 >= -eps);
+            bool nonPos = (c1 <=  eps) && (c2 <=  eps) && (c3 <=  eps);
+            return nonNeg || nonPos;
+        }
+
+        // ====== 投影与工具 ======
+
+        private Vector3 ProjectOntoXY(Vector3 p, Vector3 dir)
+        {
+            // 假设 AccumulateForSunVector 已保证 |dir.Z| 足够大
+            float t = -p.Z / dir.Z;
+            return new Vector3(p.X + t * dir.X, p.Y + t * dir.Y, 0f);
+        }
+
+        private void ClearShadowGrid(bool[,] grid)
+        {
+            Array.Clear(grid, 0, grid.Length);
+        }
+
+        // ====== 输出与统计 ======
 
         public void SaveLightHourGrid(string filePath)
         {
@@ -228,27 +316,6 @@ namespace CrvGrowth
                     writer.WriteLine(hours);
                 }
             }
-        }
-
-        private Vector3 ProjectOntoXY(Vector3 p, Vector3 dir)
-        {
-            float t = -p.Z / dir.Z;
-            return new Vector3(p.X + t * dir.X, p.Y + t * dir.Y, 0f);
-        }
-
-        private bool PointInQuad(Vector3 p, Vector3 a, Vector3 b, Vector3 c, Vector3 d)
-        {
-            bool SameSide(Vector3 p1, Vector3 p2, Vector3 a1, Vector3 a2)
-            {
-                float cp1 = (a2.X - a1.X) * (p1.Y - a1.Y) - (a2.Y - a1.Y) * (p1.X - a1.X);
-                float cp2 = (a2.X - a1.X) * (p2.Y - a1.Y) - (a2.Y - a1.Y) * (p2.X - a1.X);
-                return cp1 * cp2 >= 0;
-            }
-
-            return SameSide(p, c, a, b) &&
-                   SameSide(p, d, b, c) &&
-                   SameSide(p, a, c, d) &&
-                   SameSide(p, b, d, a);
         }
 
         public double GetTotalLightHours()
