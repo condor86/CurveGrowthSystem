@@ -53,15 +53,23 @@ namespace CrvGrowth
                 SiteLatitudeDeg, SiteLongitudeDeg, SiteTimezoneHours,
                 Up, North);
 
-            // === NSGA-II 基因边界（4 + 400 = 404）===
-            const int repellerCount = 4;
-            const int pointCount    = 400;
-            const int geneLen       = repellerCount + pointCount;
+            // === NSGA-II 基因边界（4 + 400 + 400 = 804）===
+            const int repellerCount = 4;     // 斥力因子
+            const int offsetCount   = 400;   // 逐点 -Y 偏移
+            const int angleCount    = 400;   // 逐点局部平面旋转角
+            const int geneLen       = repellerCount + offsetCount + angleCount;
 
             var lo = new double[geneLen];
             var hi = new double[geneLen];
+
+            // 1) 4 个 repeller 因子
             for (int i = 0; i < repellerCount; i++) { lo[i] = 0.01; hi[i] = 5.0; }
-            for (int i = repellerCount; i < geneLen; i++) { lo[i] = 50.0; hi[i] = 100.0; }
+
+            // 2) 400 个逐点 -Y 偏移（与你当前设置保持一致：50~100）
+            for (int i = repellerCount; i < repellerCount + offsetCount; i++) { lo[i] = 50.0; hi[i] = 100.0; }
+
+            // 3) 400 个逐点旋转角（单位：度）
+            for (int i = repellerCount + offsetCount; i < geneLen; i++) { lo[i] = -25.0; hi[i] = 25.0; }
 
             // === NSGA-II 日志目录（每代 front0 / bestGenes.csv）===
             string nsgaLogDir = Path.Combine(resultDir, "nsga_logs");
@@ -89,9 +97,6 @@ namespace CrvGrowth
                     summerToSuns, winterToSuns)
             };
 
-            // （可选）你的单步测试
-            //TestSingleMoment.RunDefaultBatch();
-
             // === 运行 NSGA-II ===
             Console.WriteLine("NSGA-II optimization started...");
             var runWatch = Stopwatch.StartNew();
@@ -110,17 +115,20 @@ namespace CrvGrowth
             Console.WriteLine("Exporting representative solution geometry & lighting...");
 
             // === 导出代表解的几何与光照（同样使用“预计算向量”）===
-            string outCrvCsv         = Path.Combine(resultDir, "resultsCrv.csv");
-            string outLightingSummer = Path.Combine(resultDir, "resultsLighting_summer.csv");
-            string outLightingWinter = Path.Combine(resultDir, "resultsLighting_winter.csv");
-            
-            string outNurbsCsv       = Path.Combine(resultDir, "resultsNurbs.csv");
-            string outFilletCsv      = Path.Combine(resultDir, "resultsFillet.csv");
+            string outCrvCsv              = Path.Combine(resultDir, "resultsCrv.csv");
+            string outVerticalCsv         = Path.Combine(resultDir, "resultsVertical.csv");          // verticalCrv
+            string outFilletVerticalCsv   = Path.Combine(resultDir, "resultsFilletVertical.csv");    // verticalCrv 圆角化（新增）
+            string outLightingSummer      = Path.Combine(resultDir, "resultsLighting_summer.csv");
+            string outLightingWinter      = Path.Combine(resultDir, "resultsLighting_winter.csv");
+            string outNurbsCsv            = Path.Combine(resultDir, "resultsNurbs.csv");
+            string outFilletCsv           = Path.Combine(resultDir, "resultsFillet.csv");
 
             SaveSolutionGeometryAndLighting(
                 genes: rep.Genes,
                 startingPoints: startingPoints,
                 repellerPoints: repellerPoints,
+                outVerticalCsv: outVerticalCsv,
+                outFilletVerticalCsv: outFilletVerticalCsv,   // 新增传参
                 outCrvCsv: outCrvCsv,
                 outLightingSummerCsv: outLightingSummer,
                 outLightingWinterCsv: outLightingWinter,
@@ -139,6 +147,8 @@ namespace CrvGrowth
             double[] genes,
             List<Vector3> startingPoints,
             List<Vector3> repellerPoints,
+            string outVerticalCsv,               // verticalCrv
+            string outFilletVerticalCsv,         // verticalCrv 的圆角化版本（新增）
             string outCrvCsv,
             string outLightingSummerCsv,
             string outLightingWinterCsv,
@@ -149,11 +159,13 @@ namespace CrvGrowth
         {
             const int repellerCount = 4;
             const int offsetCount   = 400;
+            const int angleCount    = 400;
             const float filletRadiusDefault = 10f; 
 
             // 1) 基因拆分
             var repellerFactors = genes.Take(repellerCount).ToList();
             var offsets         = genes.Skip(repellerCount).Take(offsetCount).ToArray();
+            var anglesDeg       = genes.Skip(repellerCount + offsetCount).Take(angleCount).ToArray();
 
             // 2) 平面生长
             var system = new GrowthSystem();
@@ -169,7 +181,20 @@ namespace CrvGrowth
             // 3) 转垂直（与你现有逻辑一致）：(x, y, 0) → (x, 0, z=y)
             var verticalCrv = flatCurve.Select(p => new Vector3(p.X, 0f, p.Y)).ToList();
 
-            // 4) 逐点沿 -Y 偏移（前 N 个点；N = min(count, 400)）
+            // —— 导出 verticalCrv —— 
+            IOHelper.SavePointsToFile(outVerticalCsv, verticalCrv);
+
+            // —— 导出 verticalCrv 的“圆角化版本”（固定 9 采样点；闭合与否按需求可调整）——
+            var filletVertical = FilletUtil.FilletPolylineWithFixedArcPoints(
+                pts: verticalCrv,
+                radius: filletRadiusDefault,
+                arcPointCount: 9,
+                angleEpsDeg: 1.0f,
+                isClosed: true,          // 如需开口改为 false
+                clampRadius: true);
+            IOHelper.SavePointsToFile(outFilletVerticalCsv, filletVertical);
+
+            // 4) 逐点沿 -Y 偏移（前 N 个点）
             int N = Math.Min(verticalCrv.Count, offsets.Length);
             var extrudedCrv = new List<Vector3>(verticalCrv); // 独立列表，避免 alias
             for (int i = 0; i < N; i++)
@@ -178,26 +203,26 @@ namespace CrvGrowth
                 extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
             }
 
-            // 5) 导出竖直曲线（用于复盘/可视化）
+            // 5) 新增：逐点“局部平面旋转”（以 Pn 为枢轴，在由角平分线与 pnPn 线生成的平面内）
+            NSGAWiring.ApplyLocalPlaneRotation(verticalCrv, extrudedCrv, anglesDeg);
+
+            // 6) 导出挤出（含旋转）后的曲线（用于复盘/可视化）
             IOHelper.SavePointsToFile(outCrvCsv, extrudedCrv);
 
-            // 6) 夏/冬分别用“向量直跑”并保存光照矩阵
+            // 7) 夏/冬分别用“向量直跑”并保存光照矩阵
             SimAndSaveVectors(verticalCrv, extrudedCrv, summerToSuns, outLightingSummerCsv);
             SimAndSaveVectors(verticalCrv, extrudedCrv, winterToSuns, outLightingWinterCsv);
 
+            Console.WriteLine($"Saved: {outVerticalCsv}");
+            Console.WriteLine($"Saved: {outFilletVerticalCsv}");
             Console.WriteLine($"Saved: {outCrvCsv}");
             Console.WriteLine($"Saved: {outLightingSummerCsv}");
             Console.WriteLine($"Saved: {outLightingWinterCsv}");
             
             /*
-            //构造NURBS曲线并导出
-            // 1) 构造“Rhino 控制点曲线”风格的 NURBS（Degree=3, 开区间, w=1）
+            // 可选：NURBS 采样导出
             var extrudedNurbsCurve = NurbsTools.BuildRhinoLikeCurve(extrudedCrv, degree: 3);
-
-            // 2) 按弧长等距采样（这里取 400 个点）
             var ePts400 = NurbsTools.SampleByArcLength(extrudedNurbsCurve, count: 400);
-
-            // 3) 导出 CSV（x,y,z）
             IOHelper.SavePointsToFile(outNurbsCsv, ePts400);
             Console.WriteLine($"Saved: {outNurbsCsv}");
             */
@@ -205,15 +230,13 @@ namespace CrvGrowth
             var filletSampled = FilletUtil.FilletPolylineWithFixedArcPoints(
                 pts: extrudedCrv,
                 radius: filletRadiusDefault,
-                arcPointCount: 9,      // 您的固定 9 点要求
+                arcPointCount: 9,      // 固定 9 点
                 angleEpsDeg: 1.0f,
-                isClosed: true,        // extrudedcrv 通常开口；若需要闭合可置 true
+                isClosed: true,
                 clampRadius: true);
 
-            // 直接导出 fillet 采样点（包含圆弧起止点与中间点；直线段自然由相邻点连线）
             IOHelper.SavePointsToFile(outFilletCsv, filletSampled);
             Console.WriteLine($"Saved (fillet points): {outFilletCsv}");
-
         }
 
         private static void SimAndSaveVectors(
@@ -234,7 +257,6 @@ namespace CrvGrowth
                 gridSize:      NSGAWiring.GridSize
             );
 
-            // 需要你在 LightingSimulator 中新增 RunWithSunVectors(Vector3[] toSuns) 方法
             sim.RunWithSunVectors(toSuns);
             sim.SaveLightHourGrid(outCsv);
         }
