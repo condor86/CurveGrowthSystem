@@ -34,16 +34,16 @@ namespace CrvGrowth
     /// <summary>
     /// 将 GrowthSystem 与 LightingSimulator 串起来，提供 Evaluate(genes) 给 NSGA-II 使用。
     /// 
-    /// 新基因布局（总计 804）：
+    /// 基因布局（总计 804）：
     ///   genes[0..3]     → 4 个 repeller 因子，范围 [0.01, 5.0]
-    ///   genes[4..403]   → 400 个逐点位移（沿 -Y 法向），范围 [50, 100]（与 Program 保持一致）
-    ///   genes[404..803] → 400 个逐点“局部平面旋转”角度（单位：度），范围 [-25, 25]
+    ///   genes[4..403]   → 400 个逐点位移（沿 -Y），范围 [50, 100]
+    ///   genes[404..803] → 400 个逐点局部平面旋转角（度），范围 [-25, 25]
     /// 
     /// 目标（统一最小化）：
     ///   f0 = 夏季光照小时（越小越好）
     ///   f1 = -冬季光照小时（冬季越多越好 → 取负）
     /// 
-    /// 新增：可选“预计算太阳向量”通道，避免在热循环内重复天文计算
+    /// 注意：本文件默认将投影镜像模式设为 Four（上下左右）。如需切换，可修改 MirrorMode。
     /// </summary>
     public static class NSGAWiring
     {
@@ -66,10 +66,13 @@ namespace CrvGrowth
         public static double RoomDepth     = 1000.0;
         public static double GridSize      = 10.0;
 
-        /// <summary>
-        /// true：用平均日照小时作为目标；false：改为总日照
-        /// </summary>
+        /// <summary>true：用平均日照小时作为目标；false：总日照</summary>
         public static bool   UseAverageLightHours = false;
+
+        /// <summary>
+        /// 镜像投影模式（默认 Four：上下左右）。可改为 Off / LeftRight / Four。
+        /// </summary>
+        public static MirrorShadowMode MirrorMode = MirrorShadowMode.Four;
 
         // 全局评估计数（用于无上下文时打印“评估 #”）
         private static int _globalEvalCounter = 0;
@@ -112,7 +115,7 @@ namespace CrvGrowth
         }
 
         /// <summary>
-        /// ✅ 预计算太阳向量路径（推荐）
+        /// ✅ 预计算太阳向量路径（推荐）：避免 Evaluate 内重复天文计算。
         /// </summary>
         public static Func<double[], double[]> MakeEvaluator(
             List<Vector3> startingPoints,
@@ -234,7 +237,7 @@ namespace CrvGrowth
             // 5) 新增：逐点局部平面旋转（以 Pn 为枢轴；平面由角平分线与 pnPn 线生成）
             ApplyLocalPlaneRotation(verticalCrv, extrudedCrv, anglesDeg);
 
-            // 6) 夏 / 冬 光照模拟（NOAA 现算）
+            // 6) 夏 / 冬 光照模拟（NOAA 现算）——传入镜像模式
             double summerMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, SummerDate);
             double winterMetric = SimulateAndGetMetric(verticalCrv, extrudedCrv, WinterDate);
 
@@ -289,7 +292,7 @@ namespace CrvGrowth
             // 新增：逐点局部平面旋转
             ApplyLocalPlaneRotation(verticalCrv, extrudedCrv, anglesDeg);
 
-            // 光照：直接用预计算的向量数组
+            // 光照（向量直跑）——传入镜像模式
             double summerMetric = SimulateAndGetMetric_WithVectors(verticalCrv, extrudedCrv, summerToSuns);
             double winterMetric = SimulateAndGetMetric_WithVectors(verticalCrv, extrudedCrv, winterToSuns);
 
@@ -312,7 +315,7 @@ namespace CrvGrowth
             return vertical;
         }
 
-        /// <summary>对 verticalCrv 的前 N 个点（N=min(count, offsets.Length)）沿 -Y 平移 offset[i]</summary>
+        /// <summary>对 verticalCrv 的前 N 个点沿 -Y 平移 offset[i]</summary>
         private static void ApplyOffsetsMinusY(List<Vector3> verticalCrv, double[] offsets)
         {
             int N = Math.Min(verticalCrv.Count, offsets.Length);
@@ -341,7 +344,7 @@ namespace CrvGrowth
         /// - 初始向量：v = pn - Pn（pn 来自 extrudedCrv[i]）
         /// - 平面：由“角平分线 b̂（pn-1,pn,pn+1）”与“d̂ = normalize(Pn - pn)”张成
         /// - 旋转轴：n̂ = normalize( b̂ × d̂ )（平面法向）
-        /// - 旋转角：anglesDeg[i]（度），右手法则；若与直觉相反，可在基因中取负或在此处统一反号
+        /// - 旋转角：anglesDeg[i]（度）
         /// </summary>
         public static void ApplyLocalPlaneRotation(
             List<Vector3> verticalCrv,
@@ -376,7 +379,7 @@ namespace CrvGrowth
 
                 if (hasL && hasR)
                 {
-                    var d1 = extrudedCrv[i]   - extrudedCrv[i - 1];
+                    var d1 = extrudedCrv[i]     - extrudedCrv[i - 1];
                     var d2 = extrudedCrv[i + 1] - extrudedCrv[i];
                     if (d1.LengthSquared() > EPS) d1 = Vector3.Normalize(d1);
                     if (d2.LengthSquared() > EPS) d2 = Vector3.Normalize(d2);
@@ -397,7 +400,7 @@ namespace CrvGrowth
                 }
                 else
                 {
-                    // 仅 1 点：随便取一条不与 d̂ 共线的方向
+                    // 仅 1 点：取一条不与 d̂ 共线的方向
                     bHat = Math.Abs(dHat.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
                 }
 
@@ -450,7 +453,9 @@ namespace CrvGrowth
                 interval:      Interval,
                 roomWidth:     RoomWidth,
                 roomDepth:     RoomDepth,
-                gridSize:      GridSize
+                gridSize:      GridSize,
+                isClosed:      true,
+                mirrorMode:    MirrorMode      // ★ 传入镜像模式
             );
             sim.RunSimulation();
             return GetLightMetric(sim);
@@ -474,7 +479,9 @@ namespace CrvGrowth
                 interval:      Interval,
                 roomWidth:     RoomWidth,
                 roomDepth:     RoomDepth,
-                gridSize:      GridSize
+                gridSize:      GridSize,
+                isClosed:      true,
+                mirrorMode:    MirrorMode      // ★ 传入镜像模式
             );
             sim.RunWithSunVectors(toSuns);
             return GetLightMetric(sim);

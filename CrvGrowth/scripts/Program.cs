@@ -14,7 +14,7 @@ namespace CrvGrowth
 {
     class Program
     {
-        // —— 站点参数（与当前 LightingSimulator 默认一致：南京；如需更改请在此处改）——
+        // —— 站点参数（与 LightingSimulator/NSGAWiring 默认一致：南京；如需更改请在此处改）——
         private const double SiteLatitudeDeg   = 32.0603;
         private const double SiteLongitudeDeg  = 118.7969;
         private const double SiteTimezoneHours = 8.0;
@@ -117,7 +117,7 @@ namespace CrvGrowth
             // === 导出代表解的几何与光照（同样使用“预计算向量”）===
             string outCrvCsv              = Path.Combine(resultDir, "resultsCrv.csv");
             string outVerticalCsv         = Path.Combine(resultDir, "resultsVertical.csv");          // verticalCrv
-            string outFilletVerticalCsv   = Path.Combine(resultDir, "resultsFilletVertical.csv");    // verticalCrv 圆角化（新增）
+            string outFilletVerticalCsv   = Path.Combine(resultDir, "resultsFilletVertical.csv");    // verticalCrv 圆角化
             string outLightingSummer      = Path.Combine(resultDir, "resultsLighting_summer.csv");
             string outLightingWinter      = Path.Combine(resultDir, "resultsLighting_winter.csv");
             string outNurbsCsv            = Path.Combine(resultDir, "resultsNurbs.csv");
@@ -128,7 +128,7 @@ namespace CrvGrowth
                 startingPoints: startingPoints,
                 repellerPoints: repellerPoints,
                 outVerticalCsv: outVerticalCsv,
-                outFilletVerticalCsv: outFilletVerticalCsv,   // 新增传参
+                outFilletVerticalCsv: outFilletVerticalCsv,
                 outCrvCsv: outCrvCsv,
                 outLightingSummerCsv: outLightingSummer,
                 outLightingWinterCsv: outLightingWinter,
@@ -148,7 +148,7 @@ namespace CrvGrowth
             List<Vector3> startingPoints,
             List<Vector3> repellerPoints,
             string outVerticalCsv,               // verticalCrv
-            string outFilletVerticalCsv,         // verticalCrv 的圆角化版本（新增）
+            string outFilletVerticalCsv,         // verticalCrv 的圆角化版本
             string outCrvCsv,
             string outLightingSummerCsv,
             string outLightingWinterCsv,
@@ -178,19 +178,19 @@ namespace CrvGrowth
                 baseDist:        NSGAWiring.BaseDist
             );
 
-            // 3) 转垂直（与你现有逻辑一致）：(x, y, 0) → (x, 0, z=y)
+            // 3) 转垂直（(x, y, 0) → (x, 0, z=y)）
             var verticalCrv = flatCurve.Select(p => new Vector3(p.X, 0f, p.Y)).ToList();
 
             // —— 导出 verticalCrv —— 
             IOHelper.SavePointsToFile(outVerticalCsv, verticalCrv);
 
-            // —— 导出 verticalCrv 的“圆角化版本”（固定 9 采样点；闭合与否按需求可调整）——
+            // —— 导出 verticalCrv 的“圆角化版本”（固定 9 采样点；是否闭合可按需要调整）——
             var filletVertical = FilletUtil.FilletPolylineWithFixedArcPoints(
                 pts: verticalCrv,
                 radius: filletRadiusDefault,
                 arcPointCount: 9,
                 angleEpsDeg: 1.0f,
-                isClosed: true,          // 如需开口改为 false
+                isClosed: true,          // 如 verticalCrv 是开口折线，将其改为 false
                 clampRadius: true);
             IOHelper.SavePointsToFile(outFilletVerticalCsv, filletVertical);
 
@@ -203,13 +203,13 @@ namespace CrvGrowth
                 extrudedCrv[i] = new Vector3(p.X, p.Y - (float)offsets[i], p.Z);
             }
 
-            // 5) 新增：逐点“局部平面旋转”（以 Pn 为枢轴，在由角平分线与 pnPn 线生成的平面内）
+            // 5) 逐点“局部平面旋转”（以 Pn 为枢轴，在由角平分线与 pnPn 线生成的平面内）
             NSGAWiring.ApplyLocalPlaneRotation(verticalCrv, extrudedCrv, anglesDeg);
 
             // 6) 导出挤出（含旋转）后的曲线（用于复盘/可视化）
             IOHelper.SavePointsToFile(outCrvCsv, extrudedCrv);
 
-            // 7) 夏/冬分别用“向量直跑”并保存光照矩阵
+            // 7) 夏/冬分别用“向量直跑”并保存光照矩阵（传入镜像模式）
             SimAndSaveVectors(verticalCrv, extrudedCrv, summerToSuns, outLightingSummerCsv);
             SimAndSaveVectors(verticalCrv, extrudedCrv, winterToSuns, outLightingWinterCsv);
 
@@ -248,13 +248,15 @@ namespace CrvGrowth
             var sim = new LightingSimulator(
                 verticalCurve: verticalCrv,
                 extrudedCurve: extrudedCrv,
-                date:          NSGAWiring.SummerDate,  // 占位，不再用于太阳角计算
+                date:          NSGAWiring.SummerDate,  // 占位，不在“向量直跑”中使用
                 startTime:     NSGAWiring.StartTime,
                 endTime:       NSGAWiring.EndTime,
                 interval:      NSGAWiring.Interval,
                 roomWidth:     NSGAWiring.RoomWidth,
                 roomDepth:     NSGAWiring.RoomDepth,
-                gridSize:      NSGAWiring.GridSize
+                gridSize:      NSGAWiring.GridSize,
+                isClosed:      true,
+                mirrorMode:    NSGAWiring.MirrorMode   // 关键：统一镜像模式
             );
 
             sim.RunWithSunVectors(toSuns);

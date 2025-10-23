@@ -1,4 +1,5 @@
-﻿using System;
+﻿// File: CrvGrowth/LightingSimulator.cs
+using System;
 using System.IO;
 using System.Globalization;
 using System.Collections.Generic;
@@ -7,6 +8,19 @@ using CrvGrowth.Solar; // 仅供 RunSimulation() 回退路径使用（NOAA 计�
 
 namespace CrvGrowth
 {
+    /// <summary>
+    /// 镜像投影模式：
+    /// Off      → 仅本块；
+    /// LeftRight→ 本块 + 左右（X 方向 ±gridSize）；
+    /// Four     → 本块 + 上下左右（X 与 Y 方向各 ±gridSize）。不包含对角（±X±Y）。
+    /// </summary>
+    public enum MirrorShadowMode
+    {
+        Off = 0,
+        LeftRight = 1,
+        Four = 2
+    }
+
     public class LightingSimulator
     {
         private readonly List<Vector3> _verticalCurve;
@@ -21,7 +35,8 @@ namespace CrvGrowth
         private readonly double _roomDepth;
         private readonly double _gridSize;
 
-        private readonly bool _isClosed;  // 是否按闭合曲线处理（默认 true）
+        private readonly bool _isClosed;                 // 是否按闭合曲线处理（默认 true）
+        private readonly MirrorShadowMode _mirrorMode;   // 镜像投影模式
 
         // —— 站点与坐标系（用于 NOAA 回退路径）——
         private double _latitudeDeg   = 32.0603;   // 南京
@@ -41,7 +56,7 @@ namespace CrvGrowth
 
         private int[,] _lightHourGrid;
 
-        // 复用的遮挡网格，避免每步分配
+        // 复用遮挡网格，避免每步分配
         private bool[,] _shadowGridBuffer;
 
         public LightingSimulator(
@@ -54,7 +69,9 @@ namespace CrvGrowth
             double roomWidth,
             double roomDepth,
             double gridSize,
-            bool isClosed = true)
+            bool isClosed = true,
+            MirrorShadowMode mirrorMode = MirrorShadowMode.LeftRight // 默认保持原行为（左右镜像）
+        )
         {
             if (verticalCurve.Count != extrudedCurve.Count)
                 throw new ArgumentException("verticalCurve 和 extrudedCurve 的点数必须相同");
@@ -71,7 +88,8 @@ namespace CrvGrowth
             _roomDepth = roomDepth;
             _gridSize  = gridSize;
 
-            _isClosed = isClosed;
+            _isClosed   = isClosed;
+            _mirrorMode = mirrorMode;
 
             InitializeGrid();
         }
@@ -150,7 +168,7 @@ namespace CrvGrowth
             int n = _verticalCurve.Count;
             if (n < 2) return;
 
-            // —— 开放/闭合的“主循环段” ——（开放时：0..n-2；闭合时同样先覆盖 0..n-2）
+            // —— 主循环段（开放/闭合同步覆盖 0..n-2）——
             for (int i = 0; i < n - 1; i++)
             {
                 var v0 = _verticalCurve[i];
@@ -163,8 +181,7 @@ namespace CrvGrowth
                 var p2 = ProjectOntoXY(b1, sunDir);
                 var p3 = ProjectOntoXY(b0, sunDir);
 
-                // 原位 + 左右各一份（±_gridSize）一起涂色
-                RasterizeQuadToShadowGridWithSideCopies(p0, p1, p2, p3, ref shadowGrid);
+                RasterizeQuadToShadowGridWithCopies(p0, p1, p2, p3, ref shadowGrid);
             }
 
             // —— 闭合补段：末尾 → 开头 ——（如 _isClosed）
@@ -181,7 +198,7 @@ namespace CrvGrowth
                 var p2 = ProjectOntoXY(b1, sunDir);
                 var p3 = ProjectOntoXY(b0, sunDir);
 
-                RasterizeQuadToShadowGridWithSideCopies(p0, p1, p2, p3, ref shadowGrid);
+                RasterizeQuadToShadowGridWithCopies(p0, p1, p2, p3, ref shadowGrid);
             }
 
             // —— 将未被遮挡的格点累计“光照次数” ——（每个样本步 +1）
@@ -195,7 +212,7 @@ namespace CrvGrowth
             }
         }
 
-        // ====== 栅格化（含左右镜像复制） ======
+        // ====== 栅格化（含镜像复制开关） ======
 
         // 平移 XY（保持 Z 不变）
         private static Vector3 OffsetXY(in Vector3 p, float dx, float dy)
@@ -203,25 +220,51 @@ namespace CrvGrowth
             return new Vector3(p.X + dx, p.Y + dy, p.Z);
         }
 
-        // 原四边形 + 左右各一份（沿世界坐标 X 方向，距离 = _gridSize）
-        private void RasterizeQuadToShadowGridWithSideCopies(
+        /// <summary>
+        /// 根据 _mirrorMode 进行栅格化：
+        /// - Off：仅原四边形；
+        /// - LeftRight：原四边形 + X 方向 ±gridSize；
+        /// - Four：原四边形 + X/Y 方向各 ±gridSize（四邻），不包含对角。
+        /// </summary>
+        private void RasterizeQuadToShadowGridWithCopies(
             Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, ref bool[,] shadowGrid)
         {
             // 原位置
             RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
 
-            // 左/右复制（±_gridSize）
+            if (_mirrorMode == MirrorShadowMode.Off) return;
+
             float s = (float)_gridSize;
 
-            RasterizeQuadToShadowGrid(
-                OffsetXY(p0, -s, 0), OffsetXY(p1, -s, 0),
-                OffsetXY(p2, -s, 0), OffsetXY(p3, -s, 0),
-                ref shadowGrid);
+            if (_mirrorMode == MirrorShadowMode.LeftRight || _mirrorMode == MirrorShadowMode.Four)
+            {
+                // 左/右（±X）
+                RasterizeQuadToShadowGrid(
+                    OffsetXY(p0, -s, 0), OffsetXY(p1, -s, 0),
+                    OffsetXY(p2, -s, 0), OffsetXY(p3, -s, 0),
+                    ref shadowGrid);
 
-            RasterizeQuadToShadowGrid(
-                OffsetXY(p0,  s, 0), OffsetXY(p1,  s, 0),
-                OffsetXY(p2,  s, 0), OffsetXY(p3,  s, 0),
-                ref shadowGrid);
+                RasterizeQuadToShadowGrid(
+                    OffsetXY(p0,  s, 0), OffsetXY(p1,  s, 0),
+                    OffsetXY(p2,  s, 0), OffsetXY(p3,  s, 0),
+                    ref shadowGrid);
+            }
+
+            if (_mirrorMode == MirrorShadowMode.Four)
+            {
+                // 上/下（±Y）
+                RasterizeQuadToShadowGrid(
+                    OffsetXY(p0, 0, -s), OffsetXY(p1, 0, -s),
+                    OffsetXY(p2, 0, -s), OffsetXY(p3, 0, -s),
+                    ref shadowGrid);
+
+                RasterizeQuadToShadowGrid(
+                    OffsetXY(p0, 0,  s), OffsetXY(p1, 0,  s),
+                    OffsetXY(p2, 0,  s), OffsetXY(p3, 0,  s),
+                    ref shadowGrid);
+            }
+
+            // 说明：如需对角（±X±Y）可在此追加四个偏移。
         }
 
         private void RasterizeQuadToShadowGrid(
