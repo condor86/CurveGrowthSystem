@@ -255,8 +255,7 @@ namespace CrvGrowth
                 roomWidth:     NSGAWiring.RoomWidth,
                 roomDepth:     NSGAWiring.RoomDepth,
                 gridSize:      NSGAWiring.GridSize,
-                isClosed:      true,
-                mirrorMode:    NSGAWiring.MirrorMode   // 关键：统一镜像模式
+                isClosed:      true
             );
 
             sim.RunWithSunVectors(toSuns);

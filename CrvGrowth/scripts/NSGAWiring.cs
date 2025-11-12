@@ -62,17 +62,12 @@ namespace CrvGrowth
         public static TimeOnly EndTime     = new TimeOnly(15, 0);
         public static TimeSpan Interval    = TimeSpan.FromHours(1);
 
-        public static double RoomWidth     = 1000.0;
-        public static double RoomDepth     = 1000.0;
+        public static double RoomWidth     = 4000.0;
+        public static double RoomDepth     = 3000.0;
         public static double GridSize      = 10.0;
 
         /// <summary>true：用平均日照小时作为目标；false：总日照</summary>
         public static bool   UseAverageLightHours = false;
-
-        /// <summary>
-        /// 镜像投影模式（默认 Four：上下左右）。可改为 Off / LeftRight / Four。
-        /// </summary>
-        public static MirrorShadowMode MirrorMode = MirrorShadowMode.Four;
 
         // 全局评估计数（用于无上下文时打印“评估 #”）
         private static int _globalEvalCounter = 0;
@@ -454,8 +449,7 @@ namespace CrvGrowth
                 roomWidth:     RoomWidth,
                 roomDepth:     RoomDepth,
                 gridSize:      GridSize,
-                isClosed:      true,
-                mirrorMode:    MirrorMode      // ★ 传入镜像模式
+                isClosed:      true
             );
             sim.RunSimulation();
             return GetLightMetric(sim);
@@ -480,8 +474,7 @@ namespace CrvGrowth
                 roomWidth:     RoomWidth,
                 roomDepth:     RoomDepth,
                 gridSize:      GridSize,
-                isClosed:      true,
-                mirrorMode:    MirrorMode      // ★ 传入镜像模式
+                isClosed:      true
             );
             sim.RunWithSunVectors(toSuns);
             return GetLightMetric(sim);
