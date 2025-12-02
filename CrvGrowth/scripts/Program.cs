@@ -21,8 +21,8 @@ namespace CrvGrowth
         }
 
         // 在这里切换这次要跑的优化类型：
-        private const OptimizationMode Mode = OptimizationMode.CrvGrowth;
-        // private const OptimizationMode Mode = OptimizationMode.Blinds;
+        //private const OptimizationMode Mode = OptimizationMode.CrvGrowth;
+        private const OptimizationMode Mode = OptimizationMode.Blinds;
 
         // —— 站点参数（与 LightingSimulator 默认一致：南京）——
         private const double SiteLatitudeDeg   = 32.0603;
@@ -122,8 +122,8 @@ namespace CrvGrowth
             // NSGA-II 配置（向量路径）
             var cfg = new NSGAConfig
             {
-                PopulationSize = 1,   // 正式跑可以改 50
-                Generations    = 1,   // 正式跑可以改 100
+                PopulationSize = 50,   // 正式跑可以改 50
+                Generations    = 100,   // 正式跑可以改 100
                 CrossoverRate  = 0.9,
                 MutationRate   = 1.0 / geneLen,
                 GeneLength     = geneLen,

@@ -5,31 +5,37 @@ using System.Numerics;
 
 namespace CrvGrowth
 {
+    /// <summary>
+    /// 百叶窗几何生成：
+    /// - 基础点：位于 XZ 平面，左边界 x=0，右边界 x=unitSize，Z 从 0 到 unitSize 等分。
+    /// - 点序：L0, R0, L1, R1, ..., L_{n-1}, R_{n-1}
+    /// - 从基因解码：先沿 -Y 拉伸，再绕各自“左右边界连线”旋转。
+    /// </summary>
     public static class BlindsGenerator
     {
+        public const float UnitSizeDefault = 1000f;
+
         /// <summary>
-        /// 生成百叶窗的基础点集（未拉伸、未旋转）。
-        /// 坐标位于 xz 平面，y = 0。
-        /// 顺序：L0, R0, L1, R1, ..., L(n-1), R(n-1)
+        /// 生成基础百叶点集（仅按照 bladeCount 等分 Z，尚未拉伸/旋转）。
+        /// 左下角在原点 (0,0,0)，右上角在 (unitSize, 0, unitSize)。
+        /// 点序：L0, R0, L1, R1, ..., L_{bladeCount-1}, R_{bladeCount-1}
         /// </summary>
-        public static List<Vector3> GenerateBasePoints(int bladeCount, float unitSize = 1000f)
+        public static List<Vector3> GenerateBaseBlindsPoints(int bladeCount, float unitSize)
         {
-            if (bladeCount <= 1)
-                throw new ArgumentException("叶片个数必须大于 1。", nameof(bladeCount));
+            if (bladeCount < 2)
+                throw new ArgumentOutOfRangeException(nameof(bladeCount), "bladeCount 必须 >= 2。");
+            if (unitSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(unitSize), "unitSize 必须 > 0。");
 
             var points = new List<Vector3>(bladeCount * 2);
-
-            float segmentCount = bladeCount - 1;
-            float dz = unitSize / segmentCount;
+            float step = unitSize / (bladeCount - 1);
 
             for (int i = 0; i < bladeCount; i++)
             {
-                float z = dz * i;
-
-                // 左边界点 (x = 0)
+                float z = step * i;
+                // 左点 (x=0, y=0, z)
                 points.Add(new Vector3(0f, 0f, z));
-
-                // 右边界点 (x = unitSize)
+                // 右点 (x=unitSize, y=0, z)
                 points.Add(new Vector3(unitSize, 0f, z));
             }
 
@@ -37,154 +43,66 @@ namespace CrvGrowth
         }
 
         /// <summary>
-        /// 绕任意轴旋转一个点。
-        /// axisPoint: 轴上一点
-        /// axisDirNormalized: 归一化的轴方向向量
-        /// angleRad: 旋转角度（弧度）
+        /// 用于单独测试百叶生成逻辑的随机版本。
+        /// 每片叶片：
+        /// - 长度 ∈ [0, unitSize/(bladeCount-1)]
+        /// - 角度 ∈ [-85°, 85°]
         /// </summary>
-        private static Vector3 RotateAroundAxis(
-            Vector3 point,
-            Vector3 axisPoint,
-            Vector3 axisDirNormalized,
-            float angleRad)
-        {
-            if (axisDirNormalized.LengthSquared() < 1e-8f)
-                return point;
-
-            var v = axisDirNormalized;
-            var p = point - axisPoint;
-
-            float cos = MathF.Cos(angleRad);
-            float sin = MathF.Sin(angleRad);
-
-            var pParallel = Vector3.Dot(p, v) * v;
-            var pPerp = p - pParallel;
-            var pPerpRot = pPerp * cos + Vector3.Cross(v, pPerp) * sin;
-
-            var rotated = axisPoint + pParallel + pPerpRot;
-            return rotated;
-        }
-
-        /// <summary>
-        /// 示例：为每片叶片随机生成拉伸长度和角度，
-        /// length[i] ∈ [0, unitSize / (bladeCount - 1)]
-        /// angle[i]  ∈ [-85°, +85°]
-        ///
-        /// 输出：
-        ///  basePoints     : 基础铰接线点（2 * bladeCount）
-        ///  extrudedPoints : 沿 -Y 拉伸后的点（与 basePoints 同长度、同顺序）
-        ///  rotatedPoints  : 在拉伸基础上绕各自轴旋转后的点（与 basePoints 同长度、同顺序）
-        /// </summary>
-        public static void GenerateWithExtrudeAndRotateRandomExample(
+        public static void GenerateRandomBlinds(
             int bladeCount,
             float unitSize,
             out List<Vector3> basePoints,
-            out List<Vector3> extrudedPoints,
-            out List<Vector3> rotatedPoints,
-            out float[] lengths,
-            out float[] anglesDeg)
+            out List<Vector3> extrudedEdge,
+            Random? rng = null)
         {
-            if (bladeCount <= 1)
-                throw new ArgumentException("叶片个数必须大于 1。", nameof(bladeCount));
+            rng ??= new Random();
 
-            basePoints = GenerateBasePoints(bladeCount, unitSize);
+            basePoints = GenerateBaseBlindsPoints(bladeCount, unitSize);
+            extrudedEdge = new List<Vector3>(basePoints.Count);
 
-            int pointCount = basePoints.Count;             // 应为 2 * bladeCount
-            int expectedPointCount = bladeCount * 2;
-
-            if (pointCount != expectedPointCount)
-                throw new InvalidOperationException(
-                    $"基础点数量异常: {pointCount} != {expectedPointCount}");
-
-            extrudedPoints = new List<Vector3>(pointCount);
-            rotatedPoints  = new List<Vector3>(pointCount);
-
-            lengths   = new float[bladeCount];
-            anglesDeg = new float[bladeCount];
-
-            var rand = new Random();
-
-            float maxLength = unitSize / (bladeCount - 1);
+            double maxLength = unitSize / (bladeCount - 1);
             const float EPS = 1e-8f;
 
             for (int i = 0; i < bladeCount; i++)
             {
-                // 随机生成当前叶片的拉伸长度和角度
-                float length = (float)(rand.NextDouble() * maxLength);              // [0, maxLength]
-                float angle  = (float)(-85.0 + rand.NextDouble() * 170.0);         // [-85, +85]
-
-                lengths[i]   = length;
-                anglesDeg[i] = angle;
-
                 int idxLeft  = 2 * i;
                 int idxRight = 2 * i + 1;
 
                 var baseLeft  = basePoints[idxLeft];
                 var baseRight = basePoints[idxRight];
 
-                // 1) 沿 -Y 方向拉伸
+                float length   = (float)(rng.NextDouble() * maxLength);
+                float angleDeg = (float)(rng.NextDouble() * 170.0 - 85.0); // [-85, +85]
+
                 var offset = new Vector3(0f, -length, 0f);
                 var extrudedLeft  = baseLeft  + offset;
                 var extrudedRight = baseRight + offset;
 
-                extrudedPoints.Add(extrudedLeft);
-                extrudedPoints.Add(extrudedRight);
-
-                // 2) 围绕“原始左右点连线”为轴进行旋转
                 var axisDir = baseRight - baseLeft;
-                Vector3 rotatedLeft;
-                Vector3 rotatedRight;
-
-                if (axisDir.LengthSquared() > EPS)
+                if (axisDir.LengthSquared() < EPS)
                 {
-                    axisDir = Vector3.Normalize(axisDir);
-                    float angleRad = angle * (MathF.PI / 180f);
-
-                    rotatedLeft  = RotateAroundAxis(extrudedLeft,  baseLeft, axisDir, angleRad);
-                    rotatedRight = RotateAroundAxis(extrudedRight, baseLeft, axisDir, angleRad);
-                }
-                else
-                {
-                    // 极端情况下左右点重合，则不旋转
-                    rotatedLeft  = extrudedLeft;
-                    rotatedRight = extrudedRight;
+                    // 退化：不旋转，直接使用拉伸结果
+                    extrudedEdge.Add(extrudedLeft);
+                    extrudedEdge.Add(extrudedRight);
+                    continue;
                 }
 
-                // 无论走哪个分支，这里统一加入两点，避免漏点
-                rotatedPoints.Add(rotatedLeft);
-                rotatedPoints.Add(rotatedRight);
-            }
+                var axisUnit = Vector3.Normalize(axisDir);
+                float angleRad = angleDeg * (float)(Math.PI / 180.0);
 
-            // 数量一致性检查
-            if (extrudedPoints.Count != expectedPointCount)
-            {
-                throw new InvalidOperationException(
-                    $"Extruded 点数量异常: {extrudedPoints.Count} != {expectedPointCount}");
-            }
+                var rotatedLeft  = RotateAroundAxisThroughPoint(extrudedLeft,  baseLeft, axisUnit, angleRad);
+                var rotatedRight = RotateAroundAxisThroughPoint(extrudedRight, baseLeft, axisUnit, angleRad);
 
-            if (rotatedPoints.Count != expectedPointCount)
-            {
-                throw new InvalidOperationException(
-                    $"Rotated 点数量异常: {rotatedPoints.Count} != {expectedPointCount}");
+                extrudedEdge.Add(rotatedLeft);
+                extrudedEdge.Add(rotatedRight);
             }
         }
 
         /// <summary>
-        /// 从 NSGA 基因向量中生成百叶几何：
-        /// - bladeCount        : 当前使用的叶片个数（外部已 clamp 到 [2, max]）
-        /// - unitSize          : 窗口单元宽度 / 高度（mm）
-        /// - genes             : NSGA 基因向量
-        /// - lengthStartIndex  : genes 中长度基因起始索引（例如 1）
-        /// - angleStartIndex   : genes 中角度基因起始索引（例如 101）
-        ///
-        /// 输出：
-        ///   basePoints   → 作为 verticalCurve（位于 xz 平面，y = 0）
-        ///   extrudedEdge → 作为 extrudedCurve（沿 -Y 拉伸并绕轴旋转后的外缘）
-        ///
-        /// 实际使用：
-        ///   - 每片叶片的最大拉伸长度 = unitSize / (bladeCount - 1)，
-        ///   - 真实长度 clamp 到 [0, maxLength]，
-        ///   - 角度 clamp 到 [-85, 85]。
+        /// 1) 先根据 bladeCount 计算 maxLength = unitSize / (bladeCount - 1)；
+        /// 2) genes[lenIndex] 视为在 [0, unitSize] 上的随机数；
+        /// 3) 在此处线性映射到 [0, maxLength]；
+        /// 4) 只取前 bladeCount 个长度和角度生成几何。
         /// </summary>
         public static void GenerateFromGenes(
             int bladeCount,
@@ -195,20 +113,15 @@ namespace CrvGrowth
             out List<Vector3> basePoints,
             out List<Vector3> extrudedEdge)
         {
-            if (bladeCount <= 1)
-                throw new ArgumentException("bladeCount 必须大于 1。", nameof(bladeCount));
             if (genes == null)
                 throw new ArgumentNullException(nameof(genes));
+            if (bladeCount < 2)
+                throw new ArgumentOutOfRangeException(nameof(bladeCount), "bladeCount 必须 >= 2。");
+            if (unitSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(unitSize), "unitSize 必须 > 0。");
 
-            basePoints = GenerateBasePoints(bladeCount, unitSize);
-
-            int pointCount = basePoints.Count; // = 2 * bladeCount
-            int expectedPointCount = bladeCount * 2;
-            if (pointCount != expectedPointCount)
-                throw new InvalidOperationException(
-                    $"基础点数量异常: {pointCount} != {expectedPointCount}");
-
-            extrudedEdge = new List<Vector3>(pointCount);
+            basePoints   = GenerateBaseBlindsPoints(bladeCount, unitSize);
+            extrudedEdge = new List<Vector3>(basePoints.Count);
 
             double maxLength = unitSize / (bladeCount - 1);
             const float EPS = 1e-8f;
@@ -225,45 +138,70 @@ namespace CrvGrowth
                 int angIndex = angleStartIndex + i;
 
                 if (lenIndex >= genes.Length || angIndex >= genes.Length)
-                    throw new ArgumentException("基因向量长度不足以支撑 bladeCount 对应的长度/角度。");
+                    throw new ArgumentException("基因长度不足以支撑 bladeCount 对应的长度/角度。");
 
                 double rawLength = genes[lenIndex];
                 double rawAngle  = genes[angIndex];
-
-                float length   = (float)Math.Clamp(rawLength, 0.0, maxLength);
+                
+                // rawLength 先视为 [0, unitSize] 上的随机值，
+                // 再缩放到 [0, maxLength]。
+                double t = rawLength / unitSize;   // 变成 0..1 比例
+                t = Math.Clamp(t, 0.0, 1.0);       // 防越界
+                float length   = (float)(t * maxLength);
                 float angleDeg = (float)Math.Clamp(rawAngle, -85.0, 85.0);
 
+                // 先沿 -Y 拉伸
                 var offset = new Vector3(0f, -length, 0f);
                 var extrudedLeft  = baseLeft  + offset;
                 var extrudedRight = baseRight + offset;
 
+                // 再绕“原始左右两点连线”为轴旋转
                 var axisDir = baseRight - baseLeft;
-                Vector3 rotatedLeft;
-                Vector3 rotatedRight;
-
-                if (axisDir.LengthSquared() > EPS)
+                if (axisDir.LengthSquared() < EPS)
                 {
-                    axisDir = Vector3.Normalize(axisDir);
-                    float angleRad = angleDeg * (MathF.PI / 180f);
+                    // 极端退化：不旋转，只保留拉伸后的结果，依然保留两点
+                    extrudedEdge.Add(extrudedLeft);
+                    extrudedEdge.Add(extrudedRight);
+                    continue;
+                }
 
-                    rotatedLeft  = RotateAroundAxis(extrudedLeft,  baseLeft, axisDir, angleRad);
-                    rotatedRight = RotateAroundAxis(extrudedRight, baseLeft, axisDir, angleRad);
-                }
-                else
-                {
-                    rotatedLeft  = extrudedLeft;
-                    rotatedRight = extrudedRight;
-                }
+                var axisUnit = Vector3.Normalize(axisDir);
+                float angleRad = angleDeg * (float)(Math.PI / 180.0);
+
+                var rotatedLeft  = RotateAroundAxisThroughPoint(extrudedLeft,  baseLeft, axisUnit, angleRad);
+                var rotatedRight = RotateAroundAxisThroughPoint(extrudedRight, baseLeft, axisUnit, angleRad);
 
                 extrudedEdge.Add(rotatedLeft);
                 extrudedEdge.Add(rotatedRight);
             }
+        }
 
-            if (extrudedEdge.Count != expectedPointCount)
-            {
-                throw new InvalidOperationException(
-                    $"extrudedEdge 点数量异常: {extrudedEdge.Count} != {expectedPointCount}");
-            }
+        /// <summary>
+        /// 先把点移到以 axisOrigin 为原点的坐标系，再绕单位轴 axisUnit 旋转 angleRad，然后移回去。
+        /// </summary>
+        private static Vector3 RotateAroundAxisThroughPoint(
+            in Vector3 point,
+            in Vector3 axisOrigin,
+            in Vector3 axisUnit,
+            float angleRad)
+        {
+            var v    = point - axisOrigin;
+            var vRot = RotateAroundAxis(v, axisUnit, angleRad);
+            return axisOrigin + vRot;
+        }
+
+        /// <summary>Rodrigues 公式：绕单位轴 axisUnit 旋转 angleRad。</summary>
+        private static Vector3 RotateAroundAxis(
+            in Vector3 v,
+            in Vector3 axisUnit,
+            float angleRad)
+        {
+            float c = MathF.Cos(angleRad);
+            float s = MathF.Sin(angleRad);
+
+            return v * c
+                 + Vector3.Cross(axisUnit, v) * s
+                 + axisUnit * Vector3.Dot(axisUnit, v) * (1 - c);
         }
     }
 }

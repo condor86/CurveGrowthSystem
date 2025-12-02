@@ -37,8 +37,8 @@ namespace CrvGrowth
         public static TimeOnly EndTime     = new TimeOnly(15, 0);
         public static TimeSpan Interval    = TimeSpan.FromHours(1);
 
-        public static double RoomWidth     = 4000.0;
-        public static double RoomDepth     = 3000.0;
+        public static double RoomWidth     = 1000.0;
+        public static double RoomDepth     = 1000.0;
         public static double GridSize      = 10.0;
 
         /// <summary>true：用平均日照小时作为目标；false：总日照</summary>
