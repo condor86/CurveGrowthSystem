@@ -336,8 +336,8 @@ namespace CrvGrowth
 
             var cfg = new NSGAConfig
             {
-                PopulationSize = 1,   // 正式跑可改 50
-                Generations    = 1,   // 正式跑可改 100
+                PopulationSize = 50,   // 正式跑可改 50
+                Generations    = 100,   // 正式跑可改 100
                 CrossoverRate  = 0.9,
                 MutationRate   = 1.0 / geneLen,
                 GeneLength     = geneLen,
