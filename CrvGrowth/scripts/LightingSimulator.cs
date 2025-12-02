@@ -129,6 +129,7 @@ namespace CrvGrowth
         /// <summary>
         /// 优化路径：使用已缓存的“指向太阳”的单位向量序列（Z≈sin(高度角)）。
         /// 统一归一化并按高度角阈值过滤。
+        /// （适用于“连续带状曲线”模式。）
         /// </summary>
         public void RunWithSunVectors(Vector3[] toSuns)
         {
@@ -150,6 +151,7 @@ namespace CrvGrowth
 
         /// <summary>
         /// 回退路径：按时间步调用 NOAA 计算太阳方位与高度。
+        /// （适用于“连续带状曲线”模式。）
         /// </summary>
         public void RunSimulation()
         {
@@ -171,7 +173,54 @@ namespace CrvGrowth
         }
 
         /// <summary>
-        /// 单步累计：投影 →（可选）平铺取交 → 栅格化 → 未遮挡格点样本+1
+        /// 新增：百叶窗模式 + 预计算太阳向量。
+        /// 使用与 RunWithSunVectors 相同的太阳向量输入，
+        /// 但在几何上按 (p0,p1)、(p2,p3)... 的方式分段，每对点形成一片百叶。
+        /// </summary>
+        public void RunWithSunVectorsBlinds(Vector3[] toSuns)
+        {
+            if (toSuns == null || toSuns.Length == 0) return;
+
+            double minElSin = Math.Sin(_minElevationDeg * Math.PI / 180.0);
+
+            foreach (var raw in toSuns)
+            {
+                var norm = raw;
+                float len = norm.Length();
+                if (len <= 1e-12f) continue;
+                norm /= len;
+
+                if (norm.Z <= minElSin) continue;
+                AccumulateForSunVectorBlinds(norm);
+            }
+        }
+
+        /// <summary>
+        /// 新增：百叶窗模式 + NOAA 太阳计算。
+        /// 与 RunSimulation 类似，只是内部调用的是“百叶窗版”的累积逻辑。
+        /// </summary>
+        public void RunSimulationBlinds()
+        {
+            for (var t = _startTime; t <= _endTime; t = t.Add(_interval))
+            {
+                var dtLocal = new DateTime(_date.Year, _date.Month, _date.Day,
+                                           t.Hour, t.Minute, 0, DateTimeKind.Unspecified);
+
+                var angles = SolarNoaa.Compute(
+                    dtLocal, _latitudeDeg, _longitudeDeg, _tzOffsetHours,
+                    applyRefraction: _useApparentElevation);
+
+                double el = _useApparentElevation ? angles.ApparentElevationDeg : angles.GeometricElevationDeg;
+                if (el <= _minElevationDeg) continue;
+
+                var toSun = SolarNoaa.DirectionToSun(el, angles.AzimuthDeg, _up, _north);
+                AccumulateForSunVectorBlinds(toSun);
+            }
+        }
+
+        /// <summary>
+        /// 单步累计（原：连续带状曲线版）
+        /// 投影 →（可选）平铺取交 → 栅格化 → 未遮挡格点样本+1
         /// </summary>
         private void AccumulateForSunVector(Vector3 toSun)
         {
@@ -184,7 +233,7 @@ namespace CrvGrowth
             int n = _verticalCurve.Count;
             if (n < 2) return;
 
-            // 主段
+            // 主段：连续折线 (i → i+1)
             for (int i = 0; i < n - 1; i++)
             {
                 var v0 = _verticalCurve[i];
@@ -222,6 +271,55 @@ namespace CrvGrowth
                 else
                     RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
             }
+
+            // 累计：未被遮挡的格点样本 +1
+            for (int x = 0; x < _gridCols; x++)
+                for (int y = 0; y < _gridRows; y++)
+                    if (!shadowGrid[x, y]) _lightHourGrid[x, y] += 1;
+        }
+
+        /// <summary>
+        /// 单步累计（新增：百叶窗版）
+        /// 与 AccumulateForSunVector 的区别仅在“四边形来源”：
+        /// - 这里按 (p0,p1)、(p2,p3)、(p4,p5) ... 配对，每对形成一片百叶；
+        /// - 不再使用相邻点 (i,i+1) 的连续折线，也不做闭合补段。
+        /// 其它流程（投影、平铺、栅格化、累计）保持完全一致。
+        /// </summary>
+        private void AccumulateForSunVectorBlinds(Vector3 toSun)
+        {
+            var sunDir = -Vector3.Normalize(toSun); // 从太阳指向地面
+            if (Math.Abs(sunDir.Z) < 1e-8) return;  // 近切向，数值不稳则跳过
+
+            var shadowGrid = _shadowGridBuffer;
+            ClearShadowGrid(shadowGrid);
+
+            int n = _verticalCurve.Count;
+            if (n < 2) return;
+
+            // 百叶窗假定：点数为偶数，每两个点是一片叶片
+            // 若为奇数，则忽略最后一个孤立点（不构成四边形）
+            for (int i = 0; i + 1 < n; i += 2)
+            {
+                int i0 = i;
+                int i1 = i + 1;
+
+                var v0 = _verticalCurve[i0];
+                var v1 = _verticalCurve[i1];
+                var b1 = _extrudedCurve[i1];
+                var b0 = _extrudedCurve[i0];
+
+                var p0 = ProjectOntoXY(v0, sunDir);
+                var p1 = ProjectOntoXY(v1, sunDir);
+                var p2 = ProjectOntoXY(b1, sunDir);
+                var p3 = ProjectOntoXY(b0, sunDir);
+
+                if (_enablePeriodicTiling)
+                    RasterizeQuadTiledIntoRoom(p0, p1, p2, p3, ref shadowGrid);
+                else
+                    RasterizeQuadToShadowGrid(p0, p1, p2, p3, ref shadowGrid);
+            }
+
+            // 注意：百叶窗模式下不做闭合补段；每个叶片是独立的条带
 
             // 累计：未被遮挡的格点样本 +1
             for (int x = 0; x < _gridCols; x++)
